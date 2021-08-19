@@ -3,6 +3,8 @@
 
 #include "Explosive.h"
 #include "Main.h"
+#include "Enemy.h"
+#include "Kismet/GameplayStatics.h"
 
 AExplosive::AExplosive()
 {
@@ -11,16 +13,17 @@ AExplosive::AExplosive()
 
 void AExplosive::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	Super::OnOverlapBegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
-	
-	UE_LOG(LogTemp, Warning, TEXT("Explosive::Overlap Begin."));
+	//UE_LOG(LogTemp, Warning, TEXT("Explosive::Overlap Begin."));
 
 	if (OtherActor)
 	{
 		AMain* Main = Cast<AMain>(OtherActor);	
-		if (Main)	//OtherActor와 Main이 같다면
+		AEnemy* Enemy = Cast<AEnemy>(OtherActor);
+		if (Main || Enemy)	
 		{
-			Main->DecrementHealth(Damage);
+			Super::OnOverlapBegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
+			
+			UGameplayStatics::ApplyDamage(OtherActor, Damage, nullptr, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
 
 			Destroy();
 		}
@@ -31,5 +34,5 @@ void AExplosive::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* 
 {
 	Super::OnOverlapEnd(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex);
 
-	UE_LOG(LogTemp, Warning, TEXT("Explosive::Overlap End."));
+	//UE_LOG(LogTemp, Warning, TEXT("Explosive::Overlap End."));
 }

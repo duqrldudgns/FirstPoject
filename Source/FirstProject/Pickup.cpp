@@ -11,15 +11,15 @@ APickup::APickup()
 
 void APickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	Super::OnOverlapBegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
-
-	UE_LOG(LogTemp, Warning, TEXT("Pickup::Overlap Begin."));
-
+	//UE_LOG(LogTemp, Warning, TEXT("Pickup::Overlap Begin."));
+	
 	if (OtherActor)
 	{
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)	//OtherActor와 Main이 같다면
 		{
+			Super::OnOverlapBegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
+
 			Main->IncrementCoins(CoinCount);
 			Main->PickupLocations.Add(GetActorLocation());
 
@@ -32,5 +32,5 @@ void APickup::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 {
 	Super::OnOverlapEnd(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex);
 
-	UE_LOG(LogTemp, Warning, TEXT("Pickup::Overlap End."));
+	//UE_LOG(LogTemp, Warning, TEXT("Pickup::Overlap End."));
 }

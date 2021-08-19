@@ -14,6 +14,7 @@
 #include "Animation/AnimInstance.h"
 #include "TimerManager.h"
 #include "Components/CapsuleComponent.h"
+#include "MainPlayerController.h"
 
 // Sets default values
 AEnemy::AEnemy()
@@ -30,10 +31,11 @@ AEnemy::AEnemy()
 	CombatSphere->InitSphereRadius(80.f);
 
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
-	CombatCollision->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName("FrontLeftKneeSokcet"));	// 해당 이름을 가진 소켓에 콜리젼박스를 붙임
+	CombatCollision->SetupAttachment(GetMesh(), FName("WeaponSocket"));	// 해당 이름을 가진 소켓에 콜리젼박스를 붙임
 
 	bOverlappingCombatSphere = false;
 	bAttacking = false;
+	bHasValidTarget = false;
 
 	Health = 75.f;
 	MaxHealth = 100.f;
@@ -60,6 +62,7 @@ void AEnemy::BeginPlay()
 
 	AgroSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapBegin);
 	AgroSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapEnd);
+	AgroSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);	// pickup을 agro로 터트리지 않기 위함
 
 	CombatSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapBegin);
 	CombatSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapEnd);
@@ -102,11 +105,24 @@ void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AA
 		if (Main)
 		{
 			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
+
 			if (AIController)
 			{
 				AIController->StopMovement();
-				CombatTarget = nullptr;
 			}
+		
+			if (Main->MainPlayerController)
+			{
+				Main->MainPlayerController->RemoveEnemyHealthBar();
+			}
+			
+			if (Main->CombatTarget == this)		// 다른 종류의 여러 적이 있을 경우 내가 메인을 공격대상으로 설정하고 있다면 nullptr
+			{
+				Main->SetCombatTarget(nullptr);
+			}
+			Main->SetHasCombatTarget(false);	// Enemy의 공격대상을 벗어났으니 Main에게 체력바 보여주기를 그만둠
+			CombatTarget = nullptr;
+			bHasValidTarget = false;
 		}
 	}
 }
@@ -118,8 +134,16 @@ void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
+			if (Main->MainPlayerController)
+			{
+				Main->MainPlayerController->DisplayEnemyHealthBar();
+			}
+
 			Main->SetCombatTarget(this);	// 메인에게 공격대상으로 설정했다고 알려주면서 enemy의 정보를 넘김
+			Main->SetHasCombatTarget(true);	// Enemy의 공격대상이니 Main에게 체력바를 보여주기 위함	
 			CombatTarget = Main;
+			bHasValidTarget = true;
+
 			bOverlappingCombatSphere = true;
 			Attack();
 		}
@@ -133,10 +157,6 @@ void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, 
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			if (Main->CombatTarget == this)		// 다른 종류의 여러 적이 있을 경우 내가 메인을 공격대상으로 설정하고 있다면 nullptr
-			{
-				Main->SetCombatTarget(nullptr);
-			}
 			bOverlappingCombatSphere = false;
 			//GetWorldTimerManager().ClearTimer(AttackTimer);		//@@@@@FIX TODO : 이걸 끄면  공격이 끝난후 타이머에 들어갔을 때 캐릭터가 공격범위를 벗어나면 제자리에서 한번더 공격함
 		}
@@ -218,24 +238,21 @@ void AEnemy::DeActivateCollision()
 
 void AEnemy::Attack()
 {
-	if (Alive())
+	if (!bAttacking && Alive() && bHasValidTarget)
 	{
-		if (!bAttacking)
+		bAttacking = true;
+		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
+
+		if (AIController)
 		{
-			bAttacking = true;
-			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
+			AIController->StopMovement();
+		}
 
-			if (AIController)
-			{
-				AIController->StopMovement();
-			}
-
-			UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-			if (AnimInstance)
-			{
-				AnimInstance->Montage_Play(CombatMontage, 1.0f);
-				AnimInstance->Montage_JumpToSection(FName("Attack"), CombatMontage);
-			}
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance)
+		{
+			AnimInstance->Montage_Play(CombatMontage, 1.0f);
+			AnimInstance->Montage_JumpToSection(FName("Attack"), CombatMontage);
 		}
 	}
 }

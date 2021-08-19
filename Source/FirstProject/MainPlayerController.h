@@ -16,17 +16,33 @@ class FIRSTPROJECT_API AMainPlayerController : public APlayerController
 	
 public:
 
-	/** Reference to the UMG asset in the editor */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widgets")
+	/** Reference to the UMG asset in the editor 
+	*	블루프린트에서 설정함
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widgets")	
 	TSubclassOf<class UUserWidget> HUDOverlayAsset;
 
 	/** Variable to hold the widget after creating it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widgets")
 	UUserWidget* HUDOverlay;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "widgets")
+	TSubclassOf<UUserWidget> WEnemyHealthBar;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "widgets")
+	UUserWidget* EnemyHealthBar;
+
+	bool bEnemyHealthBarVisible;
+
+	void DisplayEnemyHealthBar();
+	void RemoveEnemyHealthBar();
+
+	FVector EnemyLocation;
 
 protected:
 
 	virtual void BeginPlay() override;
+
+	virtual void Tick(float DeltaTime) override;
 
 };

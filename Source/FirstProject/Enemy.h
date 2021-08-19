@@ -112,13 +112,16 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void MoveToTarget(class AMain* Target);
 
-	// 블루프린트 브런치에 사용
+	/** 블루프린트 브런치에 사용 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AI")
 	bool bOverlappingCombatSphere;	
 
-	/** Anim_BP에서 Target(Main)에 대한 정보를 전달 해주기 위함 */
+	/** Anim_BP에서 Target(Main)에 대한 정보를 전달 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AI")
 	AMain* CombatTarget;	
+	
+	/** 대상의 생존 여부에 따라 공격 가능 구분 */
+	bool bHasValidTarget;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -147,9 +150,9 @@ public:
 
 	bool Alive();
 
-	void DecrementHealth(float Amount);
-
 	void Die();
+
+	void DecrementHealth(float Amount);
 
 	void Disappear();
 

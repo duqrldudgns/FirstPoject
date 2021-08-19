@@ -16,6 +16,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Enemy.h"
+#include "MainPlayerController.h"
 
 // Sets default values
 AMain::AMain()
@@ -67,7 +68,10 @@ AMain::AMain()
 	bLMBDown = false;
 	bAttacking = false;
 	bInterpToEnemy = false;
-
+	bHasCombatTarget = false;
+	bMovingForward = false;
+	bMovingRight = false;
+	
 	//Initialize Enums
 	MovementStatus = EMovementStatus::EMS_Normal;
 	StaminaStatus = EStaminaStatus::ESS_Normal;
@@ -82,6 +86,8 @@ AMain::AMain()
 void AMain::BeginPlay()
 {
 	Super::BeginPlay();
+
+	MainPlayerController = Cast<AMainPlayerController>(GetController());
 }
 
 // Called every frame
@@ -89,12 +95,14 @@ void AMain::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (!Alive()) return;
+
 	float DeltaStamina = StaminaDrainRate * DeltaTime;
 
 	switch (StaminaStatus)
 	{
 	case EStaminaStatus::ESS_Normal:
-		if (bShiftKeyDown)
+		if (bShiftKeyDown && (bMovingForward || bMovingRight))
 		{
 			if (Stamina - DeltaStamina <= MinSprintStamina)
 			{
@@ -117,7 +125,7 @@ void AMain::Tick(float DeltaTime)
 		break;
 
 	case EStaminaStatus::ESS_BelowMinimum:
-		if (bShiftKeyDown)
+		if (bShiftKeyDown && (bMovingForward || bMovingRight))
 		{
 			if (Stamina - DeltaStamina <= 0.f)
 			{
@@ -147,7 +155,6 @@ void AMain::Tick(float DeltaTime)
 		}
 		else
 		{
-			Stamina += DeltaStamina;
 			SetStaminaStatus(EStaminaStatus::ESS_ExhaustedRecovering);
 		}
 		SetMovementStatus(EMovementStatus::EMS_Normal);
@@ -174,6 +181,15 @@ void AMain::Tick(float DeltaTime)
 
 		SetActorRotation(InterpRotation);
 	}
+
+	if (CombatTarget)
+	{
+		CombatTargetLocation = CombatTarget->GetActorLocation();
+		if (MainPlayerController)
+		{
+			MainPlayerController->EnemyLocation = CombatTargetLocation;
+		}
+	}
 }
 
 FRotator AMain::GetLookAtRotationYaw(FVector Target)
@@ -191,7 +207,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	check(PlayerInputComponent); // 유효한지 확인 후 false 반환하면 실행 중지
 
 	//해당하는 키를 누르면 이에 맞는 함수 호출
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMain::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
@@ -203,6 +219,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
 	PlayerInputComponent->BindAction("LMB", IE_Released, this, &AMain::LMBUp);
 	
+	// Tick 처럼 계속 동작 중 .. 왜지??
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
 
@@ -216,27 +233,43 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 void AMain::MoveForward(float Value)
 {
-	if (Controller != nullptr && Value != 0.0f && (!bAttacking))	// 공격시 움직임 제어
+	bMovingForward = false;		// 이렇게 해도 움직일 시 true로 인정 되는 듯
+	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && Alive())	// 공격시 움직임 제어
 	{
+		bMovingForward = true;
+
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();		// 변경 할 일이 없기때문에 const  ,  컨트롤러가 향하는 방향을 알려주는 rotation을 반환
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);		// 우리는 세계의 수평면에서 어떤 방향을 향하는지가 중요, 하나의 축을 가져온다 생각
 		
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);	// Matrix(Yam) = 하나의 축을 기반으로 플레이어의 local방향을 가져옴, Get(X) 그 중에서 X방향을 가져옴 = 플레이어의 정면, 앞
 		AddMovementInput(Direction, Value);		
+		
 	}
 }
 
 void AMain::MoveRight(float Value)
 {
-	if (Controller != nullptr && Value != 0.0f && (!bAttacking))	// 공격시 움직임 제어
+	bMovingRight = false;
+	if (Controller != nullptr && Value != 0.0f && (!bAttacking) && Alive())	// 공격시 움직임 제어
 	{
+		bMovingRight = true;
+
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);	// X가 정면이라면 Y는 좌우 측면
 		AddMovementInput(Direction, Value);
+
+	}
+}
+
+void AMain::Jump()
+{
+	if (Alive())
+	{
+		ACharacter::Jump();	// =  Super::Jump();
 	}
 }
 
@@ -251,6 +284,11 @@ void AMain::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
+void AMain::IncrementCoins(int32 Amount)
+{
+	Coins += Amount;
+}
+
 void AMain::DecrementHealth(float Amount)
 {
 	Health -= Amount;
@@ -261,19 +299,48 @@ void AMain::DecrementHealth(float Amount)
 	}
 }
 
-void AMain::IncrementCoins(int32 Amount)
+void AMain::DecrementHealth(float Amount, AActor* DamageCauser)
 {
-	Coins += Amount;
+	Health -= Amount;
+
+	if (Health <= 0.f)
+	{
+		Die();
+		if (DamageCauser)
+		{
+			AEnemy* Enemy = Cast<AEnemy>(DamageCauser);
+			if (Enemy)
+			{
+				Enemy->bHasValidTarget = false;
+			}
+		}
+	}
+}
+
+bool AMain::Alive()	// 살아있으면 true
+{
+	return GetMovementStatus() != EMovementStatus::EMS_Dead;
 }
 
 void AMain::Die()
 {
+	if (!Alive()) return;
+
+	SetMovementStatus(EMovementStatus::EMS_Dead);
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
 	if (AnimInstance && CombatMontage)
 	{
 		AnimInstance->Montage_Play(CombatMontage, 1.0f);
 		AnimInstance->Montage_JumpToSection(FName("Death"), CombatMontage);
 	}
+}
+
+void AMain::DeathEnd()
+{
+	GetMesh()->bPauseAnims = true;			// 애니메이션 정지
+	GetMesh()->bNoSkeletonUpdate = true;	// 스켈레톤 업데이트 정지
+
 }
 
 void AMain::SetMovementStatus(EMovementStatus Status)
@@ -303,7 +370,7 @@ void AMain::LMBDown()
 {
 	bLMBDown = true;
 
-	if (EquippedWeapon)
+	if (EquippedWeapon && Alive())
 	{
 		Attack();
 	}
@@ -406,7 +473,7 @@ void AMain::SetInterpToEnemy(bool Interp)
 
 float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
-	DecrementHealth(DamageAmount);
+	DecrementHealth(DamageAmount, DamageCauser);
 
 	return DamageAmount; 
 }
