@@ -192,13 +192,6 @@ void AMain::Tick(float DeltaTime)
 	}
 }
 
-FRotator AMain::GetLookAtRotationYaw(FVector Target)
-{
-	FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Target);	// 목표 방향 Rotation을 반환
-	FRotator LookAtRotationYaw(0.f, LookAtRotation.Yaw, 0.f);
-	return LookAtRotationYaw;
-}
-
 // Called to bind functionality to input
 void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -229,7 +222,6 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AMain::LookUpAtRate);
 	
 }
-
 
 void AMain::MoveForward(float Value)
 {
@@ -289,14 +281,15 @@ void AMain::IncrementCoins(int32 Amount)
 	Coins += Amount;
 }
 
+void AMain::IncrementHealth(float Amount)
+{
+	Health += Amount;
+	if (Health > MaxHealth) Health = MaxHealth;
+}
 void AMain::DecrementHealth(float Amount)
 {
 	Health -= Amount;
-
-	if (Health <= 0.f)
-	{
-		Die();
-	}
+	if (Health <= 0.f) Die();
 }
 
 void AMain::DecrementHealth(float Amount, AActor* DamageCauser)
@@ -476,4 +469,54 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 	DecrementHealth(DamageAmount, DamageCauser);
 
 	return DamageAmount; 
+}
+
+FRotator AMain::GetLookAtRotationYaw(FVector Target)
+{
+	FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Target);	// 목표 방향 Rotation을 반환
+	FRotator LookAtRotationYaw(0.f, LookAtRotation.Yaw, 0.f);
+	return LookAtRotationYaw;
+}
+
+void AMain::UpdateCombatTarget()
+{
+	SetCombatTarget(nullptr);
+	SetHasCombatTarget(false);
+	if (MainPlayerController)
+	{
+		MainPlayerController->RemoveEnemyHealthBar();
+	}
+
+	TArray<AActor*> OverlappingActors;
+	GetOverlappingActors(OverlappingActors, EnemyFilter);	// 내가 겹쳐있는 모든 Actor의 정보를 가져옴, Enemy class의 정보만 필터
+
+	if (OverlappingActors.Num() == 0) return;
+	
+	AEnemy* ClosestEnemy = Cast<AEnemy>(OverlappingActors[0]);
+	float MinDistance = TNumericLimits<float>::Max();
+
+	for (auto Actor : OverlappingActors)	//제일 가까운 거리에 있는 Enemy의 정보와 거리 저장
+	{
+		AEnemy* Enemy = Cast<AEnemy>(Actor);
+		if (Enemy)
+		{
+			float DistanceToActor = (Enemy->GetActorLocation() - GetActorLocation()).Size();
+			if (MinDistance > DistanceToActor)
+			{
+				MinDistance = DistanceToActor;
+				ClosestEnemy = Enemy;
+			}
+		}
+	}
+
+	if (ClosestEnemy)	// 공격시 해당 적을 향하도록 보간 및 적의 HP 표시
+	{
+		SetCombatTarget(ClosestEnemy);	// 메인에게 공격대상으로 설정했다고 알려주면서 enemy의 정보를 넘김
+		SetHasCombatTarget(true);		// Enemy의 공격대상이니 Main에게 체력바를 보여주기 위함	
+
+		if (MainPlayerController)
+		{
+			MainPlayerController->DisplayEnemyHealthBar();
+		}
+	}
 }

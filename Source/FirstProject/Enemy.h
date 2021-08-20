@@ -150,9 +150,9 @@ public:
 
 	bool Alive();
 
-	void Die();
+	void Die(AActor* Causer);
 
-	void DecrementHealth(float Amount);
+	void DecrementHealth(float Amount, AActor* Causer);
 
 	void Disappear();
 

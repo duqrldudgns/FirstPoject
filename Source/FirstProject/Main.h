@@ -72,6 +72,12 @@ public:
 	bool bInterpToEnemy;
 	void SetInterpToEnemy(bool Interp);
 
+	void UpdateCombatTarget();
+
+	// AEnemy class만 수집
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<AEnemy> EnemyFilter;
+
 	// 내가 적의 공격 대상으로 설정되어 있다면 그 적의 HP바가 보임
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
 	bool bHasCombatTarget;
@@ -144,7 +150,10 @@ public:
 	/** ApplyDamage 함수와 연동되어 데미지를 입으면 실행 */
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
+	UFUNCTION(BlueprintCallable)
 	void IncrementCoins(int32 Amount);
+	UFUNCTION(BlueprintCallable)
+	void IncrementHealth(float Amount);
 
 	void DecrementHealth(float Amount);
 	void DecrementHealth(float Amount, AActor* DamageCauser);
@@ -152,7 +161,6 @@ public:
 	bool Alive();
 
 	void Die();
-
 
 
 	// 이 캐릭터는 맞을 때 이 피를 분출함

@@ -5,6 +5,5 @@
 /Build
 /Plugins
 /Content
-/Config
 *.sln
 *_BuiltData.uasset

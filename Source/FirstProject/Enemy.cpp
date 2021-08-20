@@ -69,6 +69,9 @@ void AEnemy::BeginPlay()
 
 	CombatCollision->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatOnOverlapBegin);
 	CombatCollision->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatOnOverlapEnd);
+
+	GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 }
 
 // Called every frame
@@ -111,16 +114,8 @@ void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AA
 				AIController->StopMovement();
 			}
 		
-			if (Main->MainPlayerController)
-			{
-				Main->MainPlayerController->RemoveEnemyHealthBar();
-			}
+			Main->UpdateCombatTarget();
 			
-			if (Main->CombatTarget == this)		// 다른 종류의 여러 적이 있을 경우 내가 메인을 공격대상으로 설정하고 있다면 nullptr
-			{
-				Main->SetCombatTarget(nullptr);
-			}
-			Main->SetHasCombatTarget(false);	// Enemy의 공격대상을 벗어났으니 Main에게 체력바 보여주기를 그만둠
 			CombatTarget = nullptr;
 			bHasValidTarget = false;
 		}
@@ -134,13 +129,8 @@ void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			if (Main->MainPlayerController)
-			{
-				Main->MainPlayerController->DisplayEnemyHealthBar();
-			}
+			Main->UpdateCombatTarget();
 
-			Main->SetCombatTarget(this);	// 메인에게 공격대상으로 설정했다고 알려주면서 enemy의 정보를 넘김
-			Main->SetHasCombatTarget(true);	// Enemy의 공격대상이니 Main에게 체력바를 보여주기 위함	
 			CombatTarget = Main;
 			bHasValidTarget = true;
 
@@ -159,6 +149,11 @@ void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, 
 		{
 			bOverlappingCombatSphere = false;
 			//GetWorldTimerManager().ClearTimer(AttackTimer);		//@@@@@FIX TODO : 이걸 끄면  공격이 끝난후 타이머에 들어갔을 때 캐릭터가 공격범위를 벗어나면 제자리에서 한번더 공격함
+
+			if (Main->CombatTarget == this)
+			{
+				Main->UpdateCombatTarget();
+			}
 		}
 	}
 }
@@ -208,7 +203,7 @@ void AEnemy::MoveToTarget(class AMain* Target)	//@@@@@FIX ERROR : 네비게이션박스
 	{
 		FAIMoveRequest MoveRequest;
 		MoveRequest.SetGoalActor(Target);		// 이동 목표 : 배우
-		MoveRequest.SetAcceptanceRadius(10.0f);	// 목표 Actor에 도착했을 때 목표 Actor와의 거리
+		MoveRequest.SetAcceptanceRadius(5.0f);	// 목표 Actor에 도착했을 때 목표 Actor와의 거리
 
 		FNavPathSharedPtr NavPath;				// 목표를 따라가기 위한 경로 설정?
 
@@ -278,20 +273,26 @@ void AEnemy::PlaySwingSound()
 	}
 }
 
-void AEnemy::DecrementHealth(float Amount)
+void AEnemy::DecrementHealth(float Amount, AActor* Causer)
 {
 	Health -= Amount;
 
 	if (Health <= 0.f)
 	{
-		Die();
+		Die(Causer);
 	}
 }
 
-void AEnemy::Die()
+void AEnemy::Die(AActor* Causer)
 {
 	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Dead);
 	
+	AMain* Main = Cast<AMain>(CombatTarget);
+	if (Main)
+	{
+		Main->UpdateCombatTarget();
+	}
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
 	if (AnimInstance)
 	{
@@ -303,11 +304,13 @@ void AEnemy::Die()
 	AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
+
 }
 
 float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
-	DecrementHealth(DamageAmount);
+	DecrementHealth(DamageAmount, DamageCauser);
 
 	return DamageAmount;
 }

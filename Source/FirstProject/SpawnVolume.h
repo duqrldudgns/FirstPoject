@@ -20,7 +20,15 @@ public:
 
 	// BP에서 해당 class 기반의 목록 중 하나를 선택 할 수 있음
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawning")
-	TSubclassOf<class ACritter> PawnToSpawn;
+	TSubclassOf<AActor> Actor_1;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawning")
+	TSubclassOf<AActor> Actor_2;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawning")
+	TSubclassOf<AActor> Actor_3;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawning")
+	TSubclassOf<AActor> Actor_4;
+
+	TArray<TSubclassOf<AActor>> SpawnArray;
 
 protected:
 	// Called when the game starts or when spawned
@@ -33,6 +41,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Spawning")
 	FVector GetSpawnPoint();
 
+	UFUNCTION(BlueprintPure, Category = "Spawning")
+	TSubclassOf<AActor> GetSpawnActor();
+
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Spawning")	//청사진에 의해 재정의되도록 설계되었지만 기본 구현도 있음.
-	void SpawnOurPawn(UClass* ToSpawn, const FVector& Location);//UClass를 지정하므로써 많은것을 포괄할 수 있게 함(actor, pawn, character 등 모두 uclass에서 파생되기 때문)
+	void SpawnOurActor(UClass* ToSpawn, const FVector& Location);	//UClass를 지정하므로써 많은것을 포괄할 수 있게 함(actor, pawn, character 등 모두 uclass에서 파생되기 때문)
 };
