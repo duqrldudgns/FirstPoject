@@ -28,6 +28,31 @@ void AMainPlayerController::BeginPlay()
 		FVector2D Alignment(0.f, 0.f);
 		EnemyHealthBar->SetAlignmentInViewport(Alignment);	// 평평하고 화면을 향하도록 설정
 	}
+	if (WPauseMenu)
+	{
+		PauseMenu = CreateWidget<UUserWidget>(this, WPauseMenu);
+		if (PauseMenu)
+		{
+			PauseMenu->AddToViewport();
+			PauseMenu->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+}
+
+void AMainPlayerController::Tick(float DeltaTime)
+{
+	// 이 설정을 하지 않고 보여주게 될 경우 뷰포트화면 꽉차게 EnemyHealthBar가 보임
+	if (EnemyHealthBar)
+	{
+		FVector2D PositionInViewport;	// 체력바는 2D
+		ProjectWorldLocationToScreen(EnemyLocation, PositionInViewport);	//World Space 3D 위치를 2D Screen Space 위치로 변환
+		PositionInViewport.Y -= 50.f;
+
+		FVector2D SizeInViewport(300.f, 25.f);
+
+		EnemyHealthBar->SetPositionInViewport(PositionInViewport);	// 위치 조정
+		EnemyHealthBar->SetDesiredSizeInViewport(SizeInViewport);	// 크기 조정
+	}
 }
 
 void AMainPlayerController::DisplayEnemyHealthBar()
@@ -48,18 +73,39 @@ void AMainPlayerController::RemoveEnemyHealthBar()
 	}
 }
 
-void AMainPlayerController::Tick(float DeltaTime)
+void AMainPlayerController::DisplayPauseMenu_Implementation()
 {
-	// 이 설정을 하지 않고 보여주게 될 경우 뷰포트화면 꽉차게 EnemyHealthBar가 보임
-	if (EnemyHealthBar)
+	if (PauseMenu)
 	{
-		FVector2D PositionInViewport;	// 체력바는 2D
-		ProjectWorldLocationToScreen(EnemyLocation, PositionInViewport);	//World Space 3D 위치를 2D Screen Space 위치로 변환
-		PositionInViewport.Y -= 50.f;
+		bPauseMenuVisible = true;
+		PauseMenu->SetVisibility(ESlateVisibility::Visible);
 
-		FVector2D SizeInViewport(300.f, 25.f);
+		FInputModeGameAndUI InputModeGameAndUI;
+		SetInputMode(InputModeGameAndUI);	// UI 클릭 할 수 있게 설정
+		bShowMouseCursor = true;		// 마우스 보이게
+	}
+}
+void AMainPlayerController::RemovePauseMenu_Implementation()
+{
+	if (PauseMenu)
+	{
+		bPauseMenuVisible = false;
+		//PauseMenu->SetVisibility(ESlateVisibility::Hidden);	// BP에서 실행함
 
-		EnemyHealthBar->SetPositionInViewport(PositionInViewport);	// 위치 조정
-		EnemyHealthBar->SetDesiredSizeInViewport(SizeInViewport);	// 크기 조정
+		FInputModeGameOnly InputModeGameOnly;
+		SetInputMode(InputModeGameOnly);
+		bShowMouseCursor = false;
+	}
+}
+
+void AMainPlayerController::TogglePauseMenu()
+{
+	if (bPauseMenuVisible)
+	{
+		RemovePauseMenu();
+	}
+	else
+	{
+		DisplayPauseMenu();
 	}
 }

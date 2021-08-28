@@ -181,14 +181,22 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	/** Called for Yaw rotation */
+	void Turn(float Value);
+
+	/** Called for Pitch rotation */
+	void LookUp(float Value);
+
+	bool bMovingForward;
+	bool bMovingRight;
+
+	bool CanMove(float Value);
+
 	/** Called for forwards/backwards input */
 	void MoveForward(float Value);
 
 	/** Called for side to side input */
 	void MoveRight(float Value);
-
-	bool bMovingForward;
-	bool bMovingRight;
 
 	/** Called via input to turn at a given rate
 	* @param Rate This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
@@ -201,11 +209,13 @@ public:
 	void LookUpAtRate(float Rate);
 
 	bool bLMBDown;
-
 	void LMBDown();
-
 	void LMBUp();
 
+	bool bEscDown;
+	void EscDown();
+	UFUNCTION(BlueprintCallable)
+	void EscUp();
 
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
@@ -244,9 +254,29 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
 	class UAnimMontage* CombatMontage;
 
+	int ComboCnt;
+
 	UFUNCTION(BlueprintCallable)
 	void PlaySwingSound();
 
 	UFUNCTION(BlueprintCallable)
 	void DeathEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void Resurrection();
+
+	void SwitchLevel(FName LevelName);
+
+
+	UFUNCTION(BlueprintCallable)
+	void SaveGame();
+	
+	UFUNCTION(BlueprintCallable)
+	void LoadGame(bool SetPosition);
+
+	/** 레벨을 시작할 때 기본적으로 로드되는 것 */
+	void LoadGameNoSwitch();
+
+	UPROPERTY(EditDefaultsOnly, Category = "SaveData")
+	TSubclassOf<class AItemStorage> WeaponStorage;
 };
