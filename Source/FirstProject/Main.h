@@ -12,6 +12,7 @@ enum class EMovementStatus : uint8
 	//EMS : E Movement Status
 	EMS_Normal		UMETA(DisplayName = "Normal"),		//기본 달리기
 	EMS_Sprinting	UMETA(DisplayName = "Sprinting"),	//전력질주
+	EMS_Guard		UMETA(DisplayName = "Guard"),		//가드
 	EMS_Dead		UMETA(DisplayName = "Dead"),
 
 	EMS_MAX			UMETA(DisplayName = "DefaultMAX")	//사용하기 위한 것은 아니지만 이를 제한하고 명확한 최댓값을 나타냄
@@ -212,6 +213,10 @@ public:
 	void LMBDown();
 	void LMBUp();
 
+	bool bRMBDown;
+	void RMBDown();
+	void RMBUp();
+
 	bool bEscDown;
 	void EscDown();
 	UFUNCTION(BlueprintCallable)
@@ -255,6 +260,10 @@ public:
 	class UAnimMontage* CombatMontage;
 
 	int ComboCnt;
+	bool bComboAttackInput;
+
+	UFUNCTION(BlueprintCallable)
+	void ComboAttackInputCheck();
 
 	UFUNCTION(BlueprintCallable)
 	void PlaySwingSound();
@@ -265,8 +274,16 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Resurrection();
 
-	void SwitchLevel(FName LevelName);
 
+	/** Defense */
+	void Defense();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* DamagedMontage;
+
+
+	/** Save & Load Data*/
+	void SwitchLevel(FName LevelName);
 
 	UFUNCTION(BlueprintCallable)
 	void SaveGame();

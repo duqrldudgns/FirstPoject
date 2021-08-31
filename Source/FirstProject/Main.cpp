@@ -68,12 +68,14 @@ AMain::AMain()
 	bShiftKeyDown = false;
 	bInteractionKeyDown = false;
 	bLMBDown = false;
+	bRMBDown = false;
 	bAttacking = false;
 	bInterpToEnemy = false;
 	bHasCombatTarget = false;
 	bMovingForward = false;
 	bMovingRight = false;
 	bEscDown = false;
+	bComboAttackInput = false;
 
 	//Initialize Enums
 	MovementStatus = EMovementStatus::EMS_Normal;
@@ -203,6 +205,17 @@ void AMain::Tick(float DeltaTime)
 			MainPlayerController->EnemyLocation = CombatTargetLocation;
 		}
 	}
+
+	if (bRMBDown)
+	{
+		if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+		if (EquippedWeapon && Alive())
+		{
+			SetMovementStatus(EMovementStatus::EMS_Guard);
+		}
+	}
+
 }
 
 // Called to bind functionality to input
@@ -219,15 +232,21 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUp);
 
+	//PlayerInputComponent->BindAction("Dodge", IE_Pressed, this, &AMain::DodgeKeyDown);
+	//PlayerInputComponent->BindAction("Dodge", IE_Released, this, &AMain::DodgeKeyUp);
+
 	PlayerInputComponent->BindAction("Interaction", IE_Pressed, this, &AMain::InteractionKeyDown);
 	PlayerInputComponent->BindAction("Interaction", IE_Released, this, &AMain::InteractionKeyUp);
 
 	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
 	PlayerInputComponent->BindAction("LMB", IE_Released, this, &AMain::LMBUp);
 
+	PlayerInputComponent->BindAction("RMB", IE_Pressed, this, &AMain::RMBDown);
+	PlayerInputComponent->BindAction("RMB", IE_Released, this, &AMain::RMBUp);
+
 	PlayerInputComponent->BindAction("Esc", IE_Pressed, this, &AMain::EscDown);
 	PlayerInputComponent->BindAction("Esc", IE_Released, this, &AMain::EscUp);
-
+	
 	// MEMO : Tick 처럼 계속 동작 중 .. 왜지?? , 아래 함수들도 마찬가지 일 것 같음
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
@@ -242,7 +261,10 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 bool AMain::CanMove(float Value)
 {
-	return Controller != nullptr && Value != 0.0f && !bAttacking && Alive() && !MainPlayerController->bPauseMenuVisible;
+	return Controller != nullptr && Value != 0.0f && 
+		!bAttacking && Alive() && 
+		!MainPlayerController->bPauseMenuVisible &&
+		GetMovementStatus() != EMovementStatus::EMS_Guard;
 }
 
 void AMain::MoveForward(float Value)
@@ -283,7 +305,7 @@ void AMain::Jump()
 {
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;	// 메뉴창 실행중이라면 리턴
 
-	if (Alive())
+	if (Alive() && !bAttacking)
 	{
 		ACharacter::Jump();	// =  Super::Jump();
 	}
@@ -356,10 +378,10 @@ void AMain::Die()
 	SetMovementStatus(EMovementStatus::EMS_Dead);
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
-	if (AnimInstance && CombatMontage)
+	if (AnimInstance && DamagedMontage)
 	{
-		AnimInstance->Montage_Play(CombatMontage, 1.0f);
-		AnimInstance->Montage_JumpToSection(FName("Death"), CombatMontage);
+		AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+		AnimInstance->Montage_JumpToSection(FName("Death"), DamagedMontage);
 	}
 }
 
@@ -405,15 +427,30 @@ void AMain::LMBDown()
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
-	if (EquippedWeapon && Alive())
+	if (EquippedWeapon && Alive() && !bAttacking)
 	{
 		Attack();
+		//bComboAttackInput = false;	//@@@@@ FIX TODO : 주석처리 시 첫 공격때만 콤보가 적용이 됨
+	}
+	else 
+	{
+		bComboAttackInput = true;
 	}
 }
 
 void AMain::LMBUp()
 {
 	bLMBDown = false;
+}
+
+void AMain::RMBDown()
+{
+	bRMBDown = true;
+}
+
+void AMain::RMBUp()
+{
+	bRMBDown = false;
 }
 
 void AMain::EscDown()
@@ -469,24 +506,21 @@ void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 
 void AMain::Attack()
 {
-	if (!bAttacking)	// 공격 도중 공격하는 현상 방지
-	{
-		bAttacking = true;
-		if (CombatTarget) SetInterpToEnemy(true);	// 적이 나를 공격 대상으로 삼았다면 공격 보정이 가능한 상태로 만듦
+	bAttacking = true;
+	if (CombatTarget) SetInterpToEnemy(true);	// 적이 나를 공격 대상으로 삼았다면 공격 보정이 가능한 상태로 만듦
 
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
-		if (AnimInstance && CombatMontage)
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+	if (AnimInstance && CombatMontage)
+	{
+		const char* ComboList[] = { "Combo01", "Combo02" };
+		if (!(AnimInstance->Montage_IsPlaying(CombatMontage)))	//애니메이션이 실행 중이지 않을 때
 		{
-			const char* ComboList[] = { "Combo01", "Combo02", "Combo03" };
-			if (!(AnimInstance->Montage_IsPlaying(CombatMontage)))	//애니메이션이 실행 중이지 않을 때
-			{
-				AnimInstance->Montage_Play(CombatMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
-				AnimInstance->Montage_JumpToSection(FName(ComboList[ComboCnt]), CombatMontage);	//해당 섹션 실행
-			}
-			else {	//애니메이션이 실행 중 일 때
-				AnimInstance->Montage_Play(CombatMontage, 1.0f);
-				AnimInstance->Montage_JumpToSection(FName(ComboList[ComboCnt]), CombatMontage);
-			}
+			AnimInstance->Montage_Play(CombatMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
+			AnimInstance->Montage_JumpToSection(FName(ComboList[ComboCnt]), CombatMontage);	//해당 섹션 실행
+		}
+		else {	//애니메이션이 실행 중 일 때
+			AnimInstance->Montage_Play(CombatMontage, 1.0f);
+			AnimInstance->Montage_JumpToSection(FName(ComboList[ComboCnt]), CombatMontage);
 		}
 	}
 }
@@ -496,8 +530,16 @@ void AMain::AttackEnd()
 	bAttacking = false;
 	SetInterpToEnemy(false);
 
-	if (bLMBDown)	// 공격이 끝났는데도 마우스가 눌려있다면 계속 공격
+	bComboAttackInput = false;
+	ComboCnt = 0;
+}
+
+void AMain::ComboAttackInputCheck()
+{
+	if (bComboAttackInput)
 	{
+		bComboAttackInput = false;
+		ComboCnt++;
 		Attack();
 	}
 }
