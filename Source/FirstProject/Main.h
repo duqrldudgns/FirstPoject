@@ -30,6 +30,16 @@ enum class EStaminaStatus : uint8
 	ESS_MAX					UMETA(DisplayName = "DefaultMAX")
 };
 
+//UENUM(BlueprintType)
+//enum class EArmedStatus : uint8
+//{
+//	//EAS : E Armed Status
+//	EAS_Normal				UMETA(DisplayName = "Normal"),
+//	EAS_Sword				UMETA(DisplayName = "Sword"),
+//
+//	ESS_MAX					UMETA(DisplayName = "DefaultMAX")
+//};
+
 UCLASS()
 class FIRSTPROJECT_API AMain : public ACharacter
 {
@@ -39,31 +49,38 @@ public:
 	// Sets default values for this character's properties
 	AMain();
 
+	/** Debug */
 	TArray<FVector> PickupLocations;
 
 	UFUNCTION(BlueprintCallable)
-		void ShowPickupLocations();
+	void ShowPickupLocations();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
-		EMovementStatus MovementStatus;
 
+	///** Armed Status*/
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
+	//EArmedStatus ArmedStatus;
+
+	//void SetArmedStatus(EArmedStatus Status);
+	//FORCEINLINE EArmedStatus GetArmedStatus() { return ArmedStatus; }
+
+	/** Stamina Status */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
-		EStaminaStatus StaminaStatus;
+	EStaminaStatus StaminaStatus;
 
 	FORCEINLINE void SetStaminaStatus(EStaminaStatus Status) { StaminaStatus = Status; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-		float StaminaDrainRate;
+	float StaminaDrainRate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-		float MinSprintStamina;
+	float MinSprintStamina;
 
 
 	/**
 	* 보간(Interpolation) - 두 점을 연결하는 방법
 	* 적이 나를 공격대상으로 정했을 때 그 대상을 향하도록 설정 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
-		class AEnemy* CombatTarget;
+	class AEnemy* CombatTarget;
 
 	FORCEINLINE void SetCombatTarget(AEnemy* Target) { CombatTarget = Target; }
 
@@ -93,6 +110,9 @@ public:
 
 
 	/** Set movement status and running speed */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
+	EMovementStatus MovementStatus;
+	
 	void SetMovementStatus(EMovementStatus Status);
 	FORCEINLINE EMovementStatus GetMovementStatus() { return MovementStatus; }
 
@@ -193,6 +213,8 @@ public:
 
 	bool CanMove(float Value);
 
+	bool CanAction();
+
 	/** Called for forwards/backwards input */
 	void MoveForward(float Value);
 
@@ -222,6 +244,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void EscUp();
 
+	bool bFirstSkillKeyDown;
+	void FirstSkillKeyDown();
+	void FirstSkillKeyUp();
+
+	bool bSecondSkillKeyDown;
+	void SecondSkillKeyDown();
+	void SecondSkillKeyUp();
+
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
@@ -233,9 +263,7 @@ public:
 	FORCEINLINE void SetActiveOverlappingItem(AItem* Item) { ActiveOverlappingItem = Item; }
 	
 	bool bInteractionKeyDown;
-
 	void InteractionKeyDown();
-
 	void InteractionKeyUp();
 
 
@@ -276,11 +304,20 @@ public:
 
 
 	/** Defense */
-	void Defense();
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
 	class UAnimMontage* DamagedMontage;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class USoundCue* GuardAcceptSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+	bool bGuardAccept;
+
+	FORCEINLINE void SetGuardAccept(bool Accept) { bGuardAccept = Accept; }
+	FORCEINLINE bool GetGuardAccept() { return bGuardAccept; }
+
+	UFUNCTION(BlueprintCallable)
+	void GuardAcceptEnd();
 
 	/** Save & Load Data*/
 	void SwitchLevel(FName LevelName);
@@ -296,4 +333,73 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SaveData")
 	TSubclassOf<class AItemStorage> WeaponStorage;
+
+
+	/** Skill */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anims")
+	bool bSkillCasting;
+
+	UFUNCTION(BlueprintCallable)
+	void SkillCastEnd();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* SkillMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<UDamageType> DamageTypeClass;
+
+	/** 피해를 입힐 때 전달해야 하는 컨트롤러가 필요 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	AController* MainInstigator;
+
+	/** 피해를 입힐 때 메인컨트롤러를 얻어야함 */
+	FORCEINLINE void SetInstigator(AController* Inst) { MainInstigator = Inst; }
+
+	void PlaySkillMontage(FName Section);
+
+	/** WaveSkill */
+	void WaveSkillCast();
+
+	UFUNCTION(BlueprintCallable)
+	void WaveSkillActivation();
+
+	UFUNCTION(BlueprintCallable)
+	void PlayWaveSkillParticle();
+
+	UFUNCTION(BlueprintCallable)
+	void PlayWaveSkillSound();
+
+	UFUNCTION(BlueprintCallable)
+	void SkillKeyDownCheck();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class UParticleSystem* WaveSkillParticle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class USoundCue* WaveSkillSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float WaveSkillDamage;
+
+
+	/** FireBallSkill */
+	void FireBallSkillCast();
+
+	UFUNCTION(BlueprintCallable)
+	void FireBallSkillActivation();
+
+	UFUNCTION(BlueprintCallable)
+	void PlayFireBallSkillParticle();
+
+	UFUNCTION(BlueprintCallable)
+	void PlayFireBallSkillSound();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class UParticleSystem* FireBallSkillParticle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class USoundCue* FireBallSkillSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TSubclassOf<class AItem> FireBall;
 };

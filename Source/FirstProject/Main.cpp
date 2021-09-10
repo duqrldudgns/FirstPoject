@@ -19,10 +19,13 @@
 #include "MainPlayerController.h"
 #include "FirstSaveGame.h"
 #include "ItemStorage.h"
+#include "Math/TransformNonVectorized.h"
+
 
 // Sets default values
 AMain::AMain()
 {
+	
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -76,10 +79,15 @@ AMain::AMain()
 	bMovingRight = false;
 	bEscDown = false;
 	bComboAttackInput = false;
+	bGuardAccept = false;
+	bFirstSkillKeyDown = false;
+	bSecondSkillKeyDown = false;
+	bSkillCasting = false;
 
 	//Initialize Enums
 	MovementStatus = EMovementStatus::EMS_Normal;
 	StaminaStatus = EStaminaStatus::ESS_Normal;
+	//ArmedStatus = EArmedStatus::EAS_Normal;
 
 	StaminaDrainRate = 20.f;
 	MinSprintStamina = 30.f;
@@ -87,6 +95,12 @@ AMain::AMain()
 	InterpSpeed = 15.f;
 
 	ComboCnt = 0;
+
+	WaveSkillDamage = 25.f;
+
+	//컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
+	SetInstigator(GetController());
+
 }
 
 // Called when the game starts or when spawned
@@ -98,6 +112,7 @@ void AMain::BeginPlay()
 
 	FString Map = GetWorld()->GetMapName();
 	Map.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
+	// 장비를 장착할 때 그 캐릭터의 컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
 
 	if (Map != "SunTemple")
 	{
@@ -197,6 +212,7 @@ void AMain::Tick(float DeltaTime)
 		SetActorRotation(InterpRotation);
 	}
 
+	// HP바 보이기 위해 위치 얻어옴
 	if (CombatTarget)
 	{
 		CombatTargetLocation = CombatTarget->GetActorLocation();
@@ -206,11 +222,12 @@ void AMain::Tick(float DeltaTime)
 		}
 	}
 
+	// 무기 갖고 있다면 Guard 상태로 전환
 	if (bRMBDown)
 	{
 		if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
-		if (EquippedWeapon && Alive())
+		if (EquippedWeapon && Alive() && !bAttacking && !bSkillCasting)
 		{
 			SetMovementStatus(EMovementStatus::EMS_Guard);
 		}
@@ -246,7 +263,13 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	PlayerInputComponent->BindAction("Esc", IE_Pressed, this, &AMain::EscDown);
 	PlayerInputComponent->BindAction("Esc", IE_Released, this, &AMain::EscUp);
+
+	PlayerInputComponent->BindAction("FirstSkill", IE_Pressed, this, &AMain::FirstSkillKeyDown);
+	PlayerInputComponent->BindAction("FirstSkill", IE_Released, this, &AMain::FirstSkillKeyUp);
 	
+	PlayerInputComponent->BindAction("SecondSkill", IE_Pressed, this, &AMain::SecondSkillKeyDown);
+	PlayerInputComponent->BindAction("SecondSkill", IE_Released, this, &AMain::SecondSkillKeyUp);
+
 	// MEMO : Tick 처럼 계속 동작 중 .. 왜지?? , 아래 함수들도 마찬가지 일 것 같음
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
@@ -262,9 +285,14 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 bool AMain::CanMove(float Value)
 {
 	return Controller != nullptr && Value != 0.0f && 
-		!bAttacking && Alive() && 
+		!bAttacking && !bSkillCasting && Alive() &&
 		!MainPlayerController->bPauseMenuVisible &&
 		GetMovementStatus() != EMovementStatus::EMS_Guard;
+}
+
+bool AMain::CanAction()
+{
+	return Alive() && !bAttacking && !bSkillCasting && GetMovementStatus() != EMovementStatus::EMS_Guard;
 }
 
 void AMain::MoveForward(float Value)
@@ -305,7 +333,7 @@ void AMain::Jump()
 {
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;	// 메뉴창 실행중이라면 리턴
 
-	if (Alive() && !bAttacking)
+	if (CanAction())
 	{
 		ACharacter::Jump();	// =  Super::Jump();
 	}
@@ -427,10 +455,10 @@ void AMain::LMBDown()
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
-	if (EquippedWeapon && Alive() && !bAttacking)
+	if (EquippedWeapon && CanAction())
 	{
 		Attack();
-		//bComboAttackInput = false;	//@@@@@ FIX TODO : 주석처리 시 첫 공격때만 콤보가 적용이 됨
+		bComboAttackInput = false;	//@@@@@ FIX TODO : 주석처리 시 첫 공격때만 콤보가 적용이 됨
 	}
 	else 
 	{
@@ -476,6 +504,7 @@ void AMain::InteractionKeyDown()
 		AWeapon* Weapon = Cast<AWeapon>(ActiveOverlappingItem);
 		if (Weapon)
 		{
+			//SetArmedStatus(EArmedStatus::EAS_Sword);
 			Weapon->Equip(this);
 		}
 	}
@@ -612,6 +641,11 @@ void AMain::UpdateCombatTarget()
 			MainPlayerController->DisplayEnemyHealthBar();
 		}
 	}
+}
+
+void AMain::GuardAcceptEnd()
+{
+	bGuardAccept = false;
 }
 
 void AMain::SwitchLevel(FName LevelName)
@@ -754,3 +788,188 @@ void AMain::LoadGameNoSwitch()
 		}
 	}
 }
+
+void AMain::FirstSkillKeyDown()
+{
+	bFirstSkillKeyDown = true;
+
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+	if (EquippedWeapon && CanAction())
+	{
+		FireBallSkillCast();
+	}
+}
+
+void AMain::FirstSkillKeyUp()
+{
+	bFirstSkillKeyDown = false;
+}
+
+void AMain::SecondSkillKeyDown()
+{
+	bSecondSkillKeyDown = true;
+
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+	if (EquippedWeapon && CanAction())
+	{
+		WaveSkillCast();
+	}
+}
+
+void AMain::SecondSkillKeyUp()
+{
+	bSecondSkillKeyDown = false;
+}
+
+void AMain::PlaySkillMontage(FName Section)
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+	if (AnimInstance && SkillMontage)
+	{
+		AnimInstance->Montage_Play(SkillMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
+		AnimInstance->Montage_JumpToSection(Section, SkillMontage);	//해당 섹션 실행
+	}
+}
+
+void AMain::FireBallSkillCast()
+{
+	bSkillCasting = true;
+
+	PlaySkillMontage("Skill01");
+}
+
+void AMain::WaveSkillCast()
+{
+	bSkillCasting = true;
+
+	PlaySkillMontage("Skill02");
+
+}
+
+void AMain::SkillCastEnd()
+{
+	bSkillCasting = false;
+}
+
+void AMain::FireBallSkillActivation()
+{
+	UWorld* World = GetWorld();
+	
+	if (World && FireBall)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		FRotator Rotator = GetActorRotation();
+		FVector  SpawnLocation = GetActorLocation();
+
+		GetWorld()->SpawnActor<AItem>(FireBall, GetActorLocation(), GetActorRotation());
+	}
+}
+
+void AMain::PlayFireBallSkillParticle()
+{
+	FVector ActorFloorLocation = GetActorLocation();
+	ActorFloorLocation.Z -= 100.f;
+	
+	if (FireBallSkillParticle)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), FireBallSkillParticle, ActorFloorLocation, GetActorRotation(), true);
+	}
+}
+
+void AMain::PlayFireBallSkillSound()
+{
+	if (FireBallSkillSound)
+	{
+		UGameplayStatics::PlaySound2D(this, FireBallSkillSound);
+	}
+}
+
+void AMain::WaveSkillActivation() {
+
+	FVector ActorLoc = GetActorLocation();
+	FVector ActorForward = GetActorForwardVector();
+	FVector StartLoc = ActorLoc; // 레이저 시작 지점.
+	FVector EndLoc = ActorLoc + (ActorForward * 1000.0f); // 레이저 끝나는 지점.
+
+	float Radius = 100.f;
+
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes; // 히트 가능한 오브젝트 유형들.
+	TEnumAsByte<EObjectTypeQuery> Pawn = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_Pawn);
+	ObjectTypes.Add(Pawn);
+
+	TArray<AActor*> IgnoreActors; // 무시할 액터들.
+
+	TArray<FHitResult> HitResults; // 히트 결과 값 받을 변수.
+
+	bool Result = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		GetWorld(),
+		StartLoc,
+		EndLoc,
+		Radius,
+		ObjectTypes,
+		false,
+		IgnoreActors, // 무시할 것이 없다고해도 null을 넣을 수 없다.
+		EDrawDebugTrace::ForDuration,	// 디버그
+		HitResults,
+		true
+		// 여기 밑에 3개는 기본 값으로 제공됨. 바꾸려면 적으면 됨.
+		//, FLinearColor::Red
+		//, FLinearColor::Green
+		//, 5.0f
+		);
+
+	if (Result == true)
+	{
+		// FVector ImpactPoint = HitResult.ImpactPoint;
+		// HitResult에서 필요한 값들을 사용하면 됨.
+		for (auto HitResult : HitResults) {
+			AEnemy* Enemy = Cast<AEnemy>(HitResult.Actor);
+			if (Enemy) 
+			{
+				//@@@@@ TODO : 적이 맞을 때 스킬의 파티클과 사운드도 있으면 좋을듯
+				if (Enemy->HitParticles)
+				{
+					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Enemy->HitParticles, HitResult.ImpactPoint, FRotator(0.f), true);
+				}
+				if (Enemy->HitSound)
+				{
+					UGameplayStatics::PlaySound2D(this, Enemy->HitSound);
+				}
+				if (DamageTypeClass)
+				{
+					// TakeDamage 함수와 연동되어 데미지를 입힘
+					UGameplayStatics::ApplyDamage(Enemy, WaveSkillDamage, MainInstigator, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+				}
+			}
+		}
+	}
+}
+
+void AMain::PlayWaveSkillParticle() 
+{
+	
+	if (WaveSkillParticle)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), WaveSkillParticle, GetActorLocation(), GetActorRotation(), true);
+	}
+}
+
+void AMain::PlayWaveSkillSound()
+{
+	if (WaveSkillSound)
+	{
+		UGameplayStatics::PlaySound2D(this, WaveSkillSound);
+	}
+}
+
+void AMain::SkillKeyDownCheck()
+{
+	if (!bSecondSkillKeyDown)
+	{
+		PlaySkillMontage("Skill02End");
+	}
+}
+

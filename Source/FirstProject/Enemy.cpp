@@ -165,25 +165,38 @@ void AEnemy::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			if (Main->HitParticles)
+			if (Main->GetMovementStatus() == EMovementStatus::EMS_Guard)	// 캐릭터가 가드 상태 일 시
 			{
-				// 스켈레톤에 들어가 설정해둔 소켓 이름인 "TipSocket"을 가져와 그 위치에 효과 발생		-	Weapon 설정과 비슷하지만 다르니 참고
-				const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
-				if (TipSocket)
+				Main->SetGuardAccept(true);
+
+				if (Main->GuardAcceptSound)
 				{
-					FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
-					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->HitParticles, SocketLocation, FRotator(0.f), false);
+					UGameplayStatics::PlaySound2D(this, Main->GuardAcceptSound);
 				}
 			}
 
-			if (Main->HitSound)	// 때렸을 때 Enemy에서 나는 소리
+			else	// 가드가 아닐 시
 			{
-				UGameplayStatics::PlaySound2D(this, Main->HitSound);
-			}
-			if (DamageTypeClass)
-			{
-				// TakeDamage 함수와 연동되어 데미지를 입힘
-				UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+				if (Main->HitParticles)
+				{
+					// 스켈레톤에 들어가 설정해둔 소켓 이름인 "TipSocket"을 가져와 그 위치에 효과 발생		-	Weapon 설정과 비슷하지만 다르니 참고
+					const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
+					if (TipSocket)
+					{
+						FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
+						UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->HitParticles, SocketLocation, FRotator(0.f), false);
+					}
+				}
+
+				if (Main->HitSound)	// 때렸을 때 Enemy에서 나는 소리
+				{
+					UGameplayStatics::PlaySound2D(this, Main->HitSound);
+				}
+				if (DamageTypeClass)
+				{
+					// TakeDamage 함수와 연동되어 데미지를 입힘
+					UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+				}
 			}
 		}
 	}
@@ -273,17 +286,23 @@ void AEnemy::PlaySwingSound()
 	}
 }
 
-void AEnemy::DecrementHealth(float Amount, AActor* Causer)
+void AEnemy::DecrementHealth(float Amount)
 {
 	Health -= Amount;
+	Damaged();
 
 	if (Health <= 0.f)
 	{
-		Die(Causer);
+		Die();
 	}
 }
 
-void AEnemy::Die(AActor* Causer)
+void AEnemy::Damaged()
+{
+
+}
+
+void AEnemy::Die()
 {
 	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Dead);
 	
@@ -310,7 +329,7 @@ void AEnemy::Die(AActor* Causer)
 
 float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
-	DecrementHealth(DamageAmount, DamageCauser);
+	DecrementHealth(DamageAmount);
 
 	return DamageAmount;
 }

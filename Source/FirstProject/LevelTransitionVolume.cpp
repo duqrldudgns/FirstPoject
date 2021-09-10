@@ -23,8 +23,8 @@ ALevelTransitionVolume::ALevelTransitionVolume()
 	IdleParticlesComponent = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("IdleParticlesComponent"));
 	IdleParticlesComponent->SetupAttachment(GetRootComponent());
 
-	Bilboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Bilboard"));
-	Bilboard->SetupAttachment(GetRootComponent());
+	Billboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Billboard"));
+	Billboard->SetupAttachment(GetRootComponent());
 
 	TransitionLevelName = "SunTemple";
 }

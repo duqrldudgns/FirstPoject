@@ -24,7 +24,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Particles")
 	class UParticleSystemComponent* IdleParticlesComponent;
 
-	class UBillboardComponent* Bilboard;
+	class UBillboardComponent* Billboard;
 
 	UPROPERTY(EditAnyWhere, BlueprintReadOnly, Category = "Transition")
 	FName TransitionLevelName;
