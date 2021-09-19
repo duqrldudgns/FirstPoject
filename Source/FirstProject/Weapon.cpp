@@ -98,7 +98,7 @@ void AWeapon::Equip(AMain* Character)
 
 		if (OnEquipSound) UGameplayStatics::PlaySound2D(this, OnEquipSound);
 
-		// 불속성 물속성 등 유지 할 것인지
+		// 불효과 물효과 등을 유지할 것인지
 		if (!bWeaponParticles) IdleParticlesComponent->Deactivate();	// 체크되어 있지 않으면 파티클 효과 끄기
 
 	}

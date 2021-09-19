@@ -34,6 +34,7 @@ AMain::AMain()
 	CameraBoom->SetupAttachment(GetRootComponent());
 	CameraBoom->TargetArmLength = 600.f;	//Camera follows at this distance
 	CameraBoom->bUsePawnControlRotation = true;		// Rotate arm based on controller 컨트롤러 기반으로 회전
+	CameraBoom->bEnableCameraLag = true;	// 부드럽게 전환
 
 	// Set size for collision capsule
 	GetCapsuleComponent()->SetCapsuleSize(34.f, 88.f);
@@ -58,6 +59,9 @@ AMain::AMain()
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.f, 0.0f);	// ...at this rotation rate , yaw에 해당하는 부분의 값을 올리면 회전속도가 빨라짐
 	GetCharacterMovement()->JumpZVelocity = 650.f;	// 점프 폭
 	GetCharacterMovement()->AirControl = 0.2f;	// 점프 시 제어강도
+	
+	JumpMaxHoldTime = 0.1f;
+	JumpMaxCount = 2;
 
 	MaxHealth = 100.f;
 	Health = 65.f;
@@ -65,8 +69,9 @@ AMain::AMain()
 	Stamina = 50.f;
 	Coins = 0;
 
+	WalkingSpeed = 300.f;
 	RunningSpeed = 600.f;
-	SprintingSpeed = 800.f;
+	SprintingSpeed = 1000.f;
 
 	bShiftKeyDown = false;
 	bInteractionKeyDown = false;
@@ -83,6 +88,9 @@ AMain::AMain()
 	bFirstSkillKeyDown = false;
 	bSecondSkillKeyDown = false;
 	bSkillCasting = false;
+	bArmedBridge = false;
+	bArmedBridgeIng = false;
+	bTestKeyDown = false;
 
 	//Initialize Enums
 	MovementStatus = EMovementStatus::EMS_Normal;
@@ -226,9 +234,9 @@ void AMain::Tick(float DeltaTime)
 	if (bRMBDown)
 	{
 		if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
-
-		if (EquippedWeapon && Alive() && !bAttacking && !bSkillCasting)
-		{
+		
+		if (EquippedWeapon && CanAction() && !GetMovementComponent()->IsFalling())
+		{ 
 			SetMovementStatus(EMovementStatus::EMS_Guard);
 		}
 	}
@@ -270,6 +278,9 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("SecondSkill", IE_Pressed, this, &AMain::SecondSkillKeyDown);
 	PlayerInputComponent->BindAction("SecondSkill", IE_Released, this, &AMain::SecondSkillKeyUp);
 
+	PlayerInputComponent->BindAction("Test", IE_Pressed, this, &AMain::TestKeyDown);
+	PlayerInputComponent->BindAction("Test", IE_Released, this, &AMain::TestKeyUp);
+
 	// MEMO : Tick 처럼 계속 동작 중 .. 왜지?? , 아래 함수들도 마찬가지 일 것 같음
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
@@ -285,21 +296,23 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 bool AMain::CanMove(float Value)
 {
 	return Controller != nullptr && Value != 0.0f && 
-		!bAttacking && !bSkillCasting && Alive() &&
-		!MainPlayerController->bPauseMenuVisible &&
-		GetMovementStatus() != EMovementStatus::EMS_Guard;
+		!MainPlayerController->bPauseMenuVisible;
+		//&& CanAction();
 }
 
 bool AMain::CanAction()
 {
-	return Alive() && !bAttacking && !bSkillCasting && GetMovementStatus() != EMovementStatus::EMS_Guard;
+	return Alive() && !bAttacking && !bSkillCasting && !bArmedBridgeIng &&
+		GetMovementStatus() != EMovementStatus::EMS_Guard;
 }
 
 void AMain::MoveForward(float Value)
 {
-	bMovingForward = false;		// 이렇게 해도 움직일 시 true로 인정 되는 듯
+	bMovingForward = false;		// 이렇게 해도 움직일 시 true로 인정 되는 듯,  매 틱 실행되니까
 	if (CanMove(Value))	// 공격시 움직임 제어
 	{
+		// 닷지 키도 입력중이면 닷지 시전 , 아니면 움직임
+
 		bMovingForward = true;
 
 		// find out which way is forward
@@ -329,16 +342,6 @@ void AMain::MoveRight(float Value)
 	}
 }
 
-void AMain::Jump()
-{
-	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;	// 메뉴창 실행중이라면 리턴
-
-	if (CanAction())
-	{
-		ACharacter::Jump();	// =  Super::Jump();
-	}
-}
-
 void AMain::Turn(float Value)
 {
 	AddControllerYawInput(Value); // 플레이어컨트롤러의 Yaw값을 조정
@@ -358,6 +361,16 @@ void AMain::TurnAtRate(float Rate)
 void AMain::LookUpAtRate(float Rate)
 {
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+}
+
+void AMain::Jump()
+{
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;	// 메뉴창 실행중이라면 리턴
+
+	if (CanAction())
+	{
+		ACharacter::Jump();	// =  Super::Jump();
+	}
 }
 
 void AMain::IncrementCoins(int32 Amount)
@@ -404,7 +417,7 @@ void AMain::Die()
 	if (!Alive() && MovementStatus == EMovementStatus::EMS_Dead) return;
 
 	SetMovementStatus(EMovementStatus::EMS_Dead);
-
+	
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
 	if (AnimInstance && DamagedMontage)
 	{
@@ -433,9 +446,13 @@ void AMain::SetMovementStatus(EMovementStatus Status)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = SprintingSpeed;
 	}
-	else
+	else if(MovementStatus == EMovementStatus::EMS_Normal)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = RunningSpeed;
+	}
+	else if (MovementStatus == EMovementStatus::EMS_Guard)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = WalkingSpeed;
 	}
 }
 
@@ -454,10 +471,16 @@ void AMain::LMBDown()
 	bLMBDown = true;
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
-
+	
 	if (EquippedWeapon && CanAction())
 	{
-		Attack();
+		if (GetCharacterMovement()->IsFalling()) {	// 공중 공격
+			AirAttack();
+		}
+		else {	// 지상 공격
+			Attack();
+		}
+
 		bComboAttackInput = false;	//@@@@@ FIX TODO : 주석처리 시 첫 공격때만 콤보가 적용이 됨
 	}
 	else 
@@ -479,6 +502,16 @@ void AMain::RMBDown()
 void AMain::RMBUp()
 {
 	bRMBDown = false;
+}
+
+void AMain::TestKeyDown()
+{
+	bTestKeyDown = true;
+}
+
+void AMain::TestKeyUp()
+{
+	bTestKeyDown = false;
 }
 
 void AMain::EscDown()
@@ -533,6 +566,18 @@ void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 	EquippedWeapon = WeaponToSet;
 }
 
+void AMain::ArmedBridgeStart()
+{
+	bArmedBridgeIng = true;
+
+	bArmedBridge = !bArmedBridge;
+}
+
+void AMain::ArmedBridgeEnd()
+{
+	bArmedBridgeIng = false;
+}
+
 void AMain::Attack()
 {
 	bAttacking = true;
@@ -554,6 +599,29 @@ void AMain::Attack()
 	}
 }
 
+void AMain::AirAttack() {
+
+	bAttacking = true;
+	//if (CombatTarget) SetInterpToEnemy(true);	// 적이 나를 공격 대상으로 삼았다면 공격 보정이 가능한 상태로 만듦
+
+	GetCharacterMovement()->SetMovementMode(MOVE_Flying);	// Flying 상태로 전환 , 중력 x
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+	if (AnimInstance && JumpCombatMontage)
+	{
+		const char* ComboList[] = { "JumpCombo01", "JumpCombo02", "JumpCombo03", "JumpCombo04", "JumpCombo05", "JumpCombo06", };
+		if (!(AnimInstance->Montage_IsPlaying(JumpCombatMontage)))	//애니메이션이 실행 중이지 않을 때
+		{
+			AnimInstance->Montage_Play(JumpCombatMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
+			AnimInstance->Montage_JumpToSection(FName(ComboList[ComboCnt]), JumpCombatMontage);	//해당 섹션 실행
+		}
+		else {	//애니메이션이 실행 중 일 때
+			AnimInstance->Montage_Play(JumpCombatMontage, 1.0f);
+			AnimInstance->Montage_JumpToSection(FName(ComboList[ComboCnt]), JumpCombatMontage);
+		}
+	}
+}
+
 void AMain::AttackEnd()
 {
 	bAttacking = false;
@@ -561,6 +629,10 @@ void AMain::AttackEnd()
 
 	bComboAttackInput = false;
 	ComboCnt = 0;
+
+	if (GetCharacterMovement()->IsFlying()) {	// 공중 공격 중이었다면
+		GetCharacterMovement()->SetMovementMode(MOVE_Falling);	// Falling 상태로 전환, 중력 o 
+	}
 }
 
 void AMain::ComboAttackInputCheck()
@@ -569,7 +641,13 @@ void AMain::ComboAttackInputCheck()
 	{
 		bComboAttackInput = false;
 		ComboCnt++;
-		Attack();
+
+		if (GetCharacterMovement()->IsFlying()) {	// 공중 공격 중이면
+			AirAttack();
+		}
+		else {
+			Attack();	
+		}
 	}
 }
 

@@ -79,7 +79,7 @@ public:
 	/**
 	* 보간(Interpolation) - 두 점을 연결하는 방법
 	* 적이 나를 공격대상으로 정했을 때 그 대상을 향하도록 설정 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat")
 	class AEnemy* CombatTarget;
 
 	FORCEINLINE void SetCombatTarget(AEnemy* Target) { CombatTarget = Target; }
@@ -93,16 +93,16 @@ public:
 	void UpdateCombatTarget();
 
 	// AEnemy class만 수집
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Combat")
 	TSubclassOf<AEnemy> EnemyFilter;
 
 	// 내가 적의 공격 대상으로 설정되어 있다면 그 적의 HP바가 보임
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat")
 	bool bHasCombatTarget;
 
 	FORCEINLINE void SetHasCombatTarget(bool HasTarget) { bHasCombatTarget = HasTarget; }
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Combat")
 	FVector CombatTargetLocation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Controller")
@@ -115,6 +115,9 @@ public:
 	
 	void SetMovementStatus(EMovementStatus Status);
 	FORCEINLINE EMovementStatus GetMovementStatus() { return MovementStatus; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Running")
+	float WalkingSpeed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Running")
 	float RunningSpeed;
@@ -252,6 +255,11 @@ public:
 	void SecondSkillKeyDown();
 	void SecondSkillKeyUp();
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Test")
+	bool bTestKeyDown;
+	void TestKeyDown();
+	void TestKeyUp();
+
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
@@ -274,9 +282,21 @@ public:
 	void SetEquippedWeapon(AWeapon* WeaponToSet);
 	FORCEINLINE AWeapon* GetEquippedWeapon() { return EquippedWeapon; }
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Anims")
+	bool bArmedBridge;	// 브릿지 애니메이션을 실행 했는지
+	
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Anims")
+	bool bArmedBridgeIng;
+
+	UFUNCTION(BlueprintCallable)
+	void ArmedBridgeStart();
+
+	UFUNCTION(BlueprintCallable)
+	void ArmedBridgeEnd();
+
 
 	/** Attack */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anims")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Anims")
 	bool bAttacking;
 
 	void Attack();
@@ -303,6 +323,13 @@ public:
 	void Resurrection();
 
 
+	/** Jump Combat */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* JumpCombatMontage;
+
+	void AirAttack();
+
+
 	/** Defense */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
 	class UAnimMontage* DamagedMontage;
@@ -310,7 +337,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	class USoundCue* GuardAcceptSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat")
 	bool bGuardAccept;
 
 	FORCEINLINE void SetGuardAccept(bool Accept) { bGuardAccept = Accept; }
@@ -336,7 +363,7 @@ public:
 
 
 	/** Skill */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anims")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Anims")
 	bool bSkillCasting;
 
 	UFUNCTION(BlueprintCallable)
@@ -349,13 +376,34 @@ public:
 	TSubclassOf<UDamageType> DamageTypeClass;
 
 	/** 피해를 입힐 때 전달해야 하는 컨트롤러가 필요 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat")
 	AController* MainInstigator;
 
 	/** 피해를 입힐 때 메인컨트롤러를 얻어야함 */
 	FORCEINLINE void SetInstigator(AController* Inst) { MainInstigator = Inst; }
 
 	void PlaySkillMontage(FName Section);
+
+	/** FireBallSkill */
+	void FireBallSkillCast();
+
+	UFUNCTION(BlueprintCallable)
+	void FireBallSkillActivation();
+
+	UFUNCTION(BlueprintCallable)
+	void PlayFireBallSkillParticle();
+
+	UFUNCTION(BlueprintCallable)
+	void PlayFireBallSkillSound();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class UParticleSystem* FireBallSkillParticle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class USoundCue* FireBallSkillSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TSubclassOf<class AItem> FireBall;
 
 	/** WaveSkill */
 	void WaveSkillCast();
@@ -381,25 +429,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float WaveSkillDamage;
 
-
-	/** FireBallSkill */
-	void FireBallSkillCast();
-
-	UFUNCTION(BlueprintCallable)
-	void FireBallSkillActivation();
-
-	UFUNCTION(BlueprintCallable)
-	void PlayFireBallSkillParticle();
-
-	UFUNCTION(BlueprintCallable)
-	void PlayFireBallSkillSound();
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	class UParticleSystem* FireBallSkillParticle;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	class USoundCue* FireBallSkillSound;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combat")
-	TSubclassOf<class AItem> FireBall;
+	/** Dodge */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* DodgeMontage;
 };
