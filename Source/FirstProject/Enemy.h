@@ -14,31 +14,39 @@ enum class EEnemyMovementStatus : uint8
 	EMS_Attacking		UMETA(DisplayName = "Attacking"),
 	EMS_Dead			UMETA(DisplayName = "Dead"),
 
-
 	EMS_MAX				UMETA(DisplayName = "DefaultMAX")
 };
-
 
 UCLASS()
 class FIRSTPROJECT_API AEnemy : public ACharacter
 {
 	GENERATED_BODY()
 
+	/** 플레이어의 공격이 종료되면 공격 태스크에서 해당 알림을 받을 수 있도록 델리게이트를 새로 선언 */
+	DECLARE_MULTICAST_DELEGATE(FOnAttackEndDelegate);
+
 public:
 	// Sets default values for this character's properties
 	AEnemy();
 
+	/** 공격이 종료될 떄 델리게이트를 호출 */
+	FOnAttackEndDelegate OnAttackEnd;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	EEnemyMovementStatus EnemyMovementStatus;
 
-	FORCEINLINE void SetEnemyMovementStatus(EEnemyMovementStatus Status) { EnemyMovementStatus = Status; }
-	FORCEINLINE EEnemyMovementStatus GetEnemyMovementStatus() { return EnemyMovementStatus; }
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetEnemyMovementStatus(EEnemyMovementStatus Status);
 
+	FORCEINLINE EEnemyMovementStatus GetEnemyMovementStatus() { return EnemyMovementStatus; }
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	class USphereComponent* AgroSphere;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	USphereComponent* CombatSphere;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
+	class UDecalComponent* SelectDecal;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	class AAIController* AIController;
@@ -63,6 +71,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
 	class UAnimMontage* CombatMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
+	UAnimMontage* DamagedMontage;
 
 	// Enemy마다 타격 시 생성하려는 파티클 유형(피 분출 등)이 다르기 때문에 Enemy에 파티클시스템을 달고있음
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
@@ -123,6 +134,8 @@ public:
 	/** 대상의 생존 여부에 따라 공격 가능 구분 */
 	bool bHasValidTarget;
 
+	FTimerHandle TimerHandle;
+	float TimerRemaining;
 
 	UFUNCTION(BlueprintCallable)
 	void ActivateCollision();
@@ -136,7 +149,7 @@ public:
 	void Attack();
 
 	UFUNCTION(BlueprintCallable)
-	void AttackEnd();
+	virtual void AttackEnd();
 
 	UFUNCTION(BlueprintCallable)
 	void PlaySwingSound();
@@ -152,11 +165,27 @@ public:
 
 	void Die();
 
-	void Damaged();
-
-	void DecrementHealth(float Amount);
+	bool DecrementHealth(float Amount);
 
 	void Disappear();
+	
+	UFUNCTION(BlueprintCallable)
+	void AirHitEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void DamagedDownEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void DamagedEnd();
+
+	bool bDamagedIng;
 
 	
+	float DetectRadius;
+
+	void PlayMontage(UAnimMontage* MontageName);
+
+	class UAnimInstance* AnimInstance;
+
+
 };

@@ -55,7 +55,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ShowPickupLocations();
 
-
 	///** Armed Status*/
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
 	//EArmedStatus ArmedStatus;
@@ -148,6 +147,27 @@ public:
 	float BaseTurnRate;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
+	class UDecalComponent* SelectDecal;
+
+
+	/** Foot IK */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	class UCpt_FootIK* FootIK;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	FRotator FootRotationL;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	FRotator FootRotationR;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	float HipOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	float FootOffsetL;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	float FootOffsetR;
+	
+
 
 
 	/**
@@ -254,6 +274,14 @@ public:
 	bool bSecondSkillKeyDown;
 	void SecondSkillKeyDown();
 	void SecondSkillKeyUp();
+
+	bool bThirdSkillKeyDown;
+	void ThirdSkillKeyDown();
+	void ThirdSkillKeyUp();
+
+	bool bFourthSkillKeyDown;
+	void FourthSkillKeyDown();
+	void FourthSkillKeyUp();
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Test")
 	bool bTestKeyDown;
@@ -372,8 +400,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
 	class UAnimMontage* SkillMontage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	TSubclassOf<UDamageType> DamageTypeClass;
 
 	/** 피해를 입힐 때 전달해야 하는 컨트롤러가 필요 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat")
@@ -403,7 +429,8 @@ public:
 	class USoundCue* FireBallSkillSound;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
-	TSubclassOf<class AItem> FireBall;
+	TSubclassOf<class AShootingSkill> FireBall;
+
 
 	/** WaveSkill */
 	void WaveSkillCast();
@@ -432,4 +459,30 @@ public:
 	/** Dodge */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
 	class UAnimMontage* DodgeMontage;
+
+	/** Dash Attack */
+	void DashAttack();
+
+	/** Upper Attack */
+	void UpperAttack();
+
+
+	/** DamageTypeClass */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<UDamageType> Basic;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<UDamageType> Upper;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<UDamageType> KnockDown;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<UDamageType> Rush;
+
+
+	FTimerHandle TimerHandle;
+
+
+	FVector GetFloor();
 };

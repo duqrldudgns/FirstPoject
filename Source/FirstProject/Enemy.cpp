@@ -15,6 +15,12 @@
 #include "TimerManager.h"
 #include "Components/CapsuleComponent.h"
 #include "MainPlayerController.h"
+#include "Weapon.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "EnemyAIController.h"
+#include "Components/DecalComponent.h"
+
 
 // Sets default values
 AEnemy::AEnemy()
@@ -33,18 +39,37 @@ AEnemy::AEnemy()
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
 	CombatCollision->SetupAttachment(GetMesh(), FName("WeaponSocket"));	// 해당 이름을 가진 소켓에 콜리젼박스를 붙임
 
+	SelectDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectDecal"));
+	SelectDecal->SetupAttachment(GetRootComponent());
+	SelectDecal->SetVisibility(false);
+	SelectDecal->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
+	static ConstructorHelpers::FObjectFinder<UMaterial> Decal(TEXT("Material'/Game/GameplayMechanics/test/CharaSelectDecal/CharSelectDecal_MT.CharSelectDecal_MT'"));
+	if (Decal.Succeeded())
+	{
+		SelectDecal->SetDecalMaterial(Decal.Object);
+	}
+
 	bOverlappingCombatSphere = false;
 	bAttacking = false;
 	bHasValidTarget = false;
+	bDamagedIng = false;
 
 	Health = 75.f;
 	MaxHealth = 100.f;
 	Damage = 10.f;
 
 	AttackDelay = 2.f;
-	DeathDelay = 3.f;
+	DeathDelay = 5.0f;
 
 	EnemyMovementStatus = EEnemyMovementStatus::EMS_Idle;
+	GetCharacterMovement()->MaxWalkSpeed = 300.f;
+
+	DamageTypeClass = UDamageType::StaticClass();
+
+	AIControllerClass = AEnemyAIController::StaticClass();
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;	//레벨에 배치하거나 새로 생성되는 Enemy는 EnemyAIController의 지배를 받게됨
+
+	DetectRadius = 600.f;
 }
 
 // Called when the game starts or when spawned
@@ -52,13 +77,21 @@ void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+
 	AIController = Cast<AAIController>(GetController());
 
 	// 충돌 유형 지정
+	GetCapsuleComponent()->SetCollisionProfileName("Enemy");
+	//GetCapsuleComponent()->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel2);	//Enemy
+	//GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Overlap);
+	//GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore);
+
+	// 무기 충돌 유형 지정
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision); // QueryOnly : 물리학 계산 하지 않음
 	CombatCollision->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);	// 모든Dynamic 요소에 대한 충돌
 	CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);	// 그 충돌에 대한 반응은 무시하고
-	CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);	// Pawn에 대한 충돌만 Overlap으로 설정
+	CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Overlap);	// Pawn에 대한 충돌만 Overlap으로 설정
 
 	AgroSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapBegin);
 	AgroSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapEnd);
@@ -72,6 +105,7 @@ void AEnemy::BeginPlay()
 
 	GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+
 }
 
 // Called every frame
@@ -107,7 +141,11 @@ void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AA
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
+			if (Alive()) 
+			{
+				SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
+			}
+			GetCharacterMovement()->MaxWalkSpeed = 300.f;
 
 			if (AIController)
 			{
@@ -135,7 +173,24 @@ void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent
 			bHasValidTarget = true;
 
 			bOverlappingCombatSphere = true;
-			Attack();
+
+			//if (GetWorldTimerManager().IsTimerActive(TimerHandle))
+			//{
+			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
+			//	GetWorldTimerManager().ClearTimer(TimerHandle);
+
+			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
+			//}
+			//else if (TimerRemaining > 0)
+			//{
+			//	GetWorldTimerManager().ClearTimer(TimerHandle);
+
+			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
+			//}
+			//else 
+			//{
+			//	Attack();
+			//}
 		}
 	}
 }
@@ -148,12 +203,18 @@ void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, 
 		if (Main)
 		{
 			bOverlappingCombatSphere = false;
-			//GetWorldTimerManager().ClearTimer(AttackTimer);		//@@@@@FIX TODO : 이걸 끄면  공격이 끝난후 타이머에 들어갔을 때 캐릭터가 공격범위를 벗어나면 제자리에서 한번더 공격함
 
 			if (Main->CombatTarget == this)
 			{
 				Main->UpdateCombatTarget();
 			}
+			//if (GetWorldTimerManager().IsTimerActive(TimerHandle) && !bAttacking)
+			//{
+			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
+			//	GetWorldTimerManager().PauseTimer(TimerHandle);
+
+			//	MoveToTarget(Main);
+			//}
 		}
 	}
 }
@@ -165,38 +226,24 @@ void AEnemy::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			if (Main->GetMovementStatus() == EMovementStatus::EMS_Guard)	// 캐릭터가 가드 상태 일 시
+			//if (Main->HitParticles)
+			//{
+			//	// 스켈레톤에 들어가 설정해둔 소켓 이름인 "TipSocket"을 가져와 그 위치에 효과 발생		-	Weapon 설정과 비슷하지만 다르니 참고
+			//	const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
+			//	if (TipSocket)
+			//	{
+			//		FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
+			//		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->HitParticles, SocketLocation, FRotator(0.f), false);
+			//	}
+			//}
+
+			FHitResult hitResult(ForceInit);
+
+			if (DamageTypeClass)
 			{
-				Main->SetGuardAccept(true);
+				//UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+				UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, AIController, this, DamageTypeClass); // 포인트 데미지
 
-				if (Main->GuardAcceptSound)
-				{
-					UGameplayStatics::PlaySound2D(this, Main->GuardAcceptSound);
-				}
-			}
-
-			else	// 가드가 아닐 시
-			{
-				if (Main->HitParticles)
-				{
-					// 스켈레톤에 들어가 설정해둔 소켓 이름인 "TipSocket"을 가져와 그 위치에 효과 발생		-	Weapon 설정과 비슷하지만 다르니 참고
-					const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
-					if (TipSocket)
-					{
-						FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
-						UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->HitParticles, SocketLocation, FRotator(0.f), false);
-					}
-				}
-
-				if (Main->HitSound)	// 때렸을 때 Enemy에서 나는 소리
-				{
-					UGameplayStatics::PlaySound2D(this, Main->HitSound);
-				}
-				if (DamageTypeClass)
-				{
-					// TakeDamage 함수와 연동되어 데미지를 입힘
-					UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
-				}
 			}
 		}
 	}
@@ -209,7 +256,12 @@ void AEnemy::CombatOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor
 
 void AEnemy::MoveToTarget(class AMain* Target)	//@@@@@FIX ERROR : 네비게이션박스 밖에 있는 캐릭터 발견 시 에러남
 {
-	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_MoveToTarget);
+	if (Alive())
+	{
+		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_MoveToTarget);
+	}
+	GetCharacterMovement()->MaxWalkSpeed = 500.f;
+
 	CombatTarget = nullptr;
 
 	if (AIController)
@@ -246,7 +298,7 @@ void AEnemy::DeActivateCollision()
 
 void AEnemy::Attack()
 {
-	if (!bAttacking && Alive() && bHasValidTarget)
+	if (!bAttacking && Alive() )// && bHasValidTarget)
 	{
 		bAttacking = true;
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
@@ -256,8 +308,7 @@ void AEnemy::Attack()
 			AIController->StopMovement();
 		}
 
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		if (AnimInstance)
+		if (AnimInstance && CombatMontage)
 		{
 			AnimInstance->Montage_Play(CombatMontage, 1.0f);
 			AnimInstance->Montage_JumpToSection(FName("Attack"), CombatMontage);
@@ -270,12 +321,24 @@ void AEnemy::Attack()
 void AEnemy::AttackEnd()
 {
 	bAttacking = false;
-	if (bOverlappingCombatSphere)
-	{
-																							//@@@@@FIX TODO : 어택에 타이머를 두는게 아니라 공격이 끝나면 2초간 쉬었다가 공격이든 움직이든 하고싶음
-		//GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemy::Attack, AttackDelay); //@@@@@FIX TODO : 공격이 끝난후 타이머에 들어갔을 때 캐릭터가 공격범위를 벗어나면 멈춰있음
-		Attack();
-	}
+	
+	OnAttackEnd.Broadcast();	// 델리게이트를 호출
+	
+	//GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([&]()
+	//{
+	//	if (bOverlappingCombatSphere) {
+	//		Attack();
+	//	}
+	//	else {
+	//		if (CombatTarget)
+	//		{
+	//			MoveToTarget(CombatTarget);
+	//		}
+	//	}
+
+	//	// TimerHandle 초기화
+	//	GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
+	//}), AttackDelay, false);	// 반복하려면 false를 true로 변경
 }
 
 void AEnemy::PlaySwingSound()
@@ -286,52 +349,164 @@ void AEnemy::PlaySwingSound()
 	}
 }
 
-void AEnemy::DecrementHealth(float Amount)
+bool AEnemy::DecrementHealth(float Amount)
 {
 	Health -= Amount;
-	Damaged();
 
 	if (Health <= 0.f)
 	{
 		Die();
+		return false;
 	}
-}
 
-void AEnemy::Damaged()
-{
-
+	return true;
 }
 
 void AEnemy::Die()
 {
 	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Dead);
-	
+	GetCharacterMovement()->MaxWalkSpeed = 0.f;
+
 	AMain* Main = Cast<AMain>(CombatTarget);
 	if (Main)
 	{
 		Main->UpdateCombatTarget();
 	}
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
-	if (AnimInstance)
+	//if (GetWorldTimerManager().IsTimerActive(TimerHandle))
+	//{
+	//	GetWorldTimerManager().ClearTimer(TimerHandle);
+	//}
+
+	if (AnimInstance && DamagedMontage)
 	{
-		AnimInstance->Montage_Play(CombatMontage, 1.0f);
-		AnimInstance->Montage_JumpToSection(FName("Death"), CombatMontage);
+		AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+		AnimInstance->Montage_JumpToSection(FName("Death"), DamagedMontage);
 	}
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	
-
 }
 
 float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
-	DecrementHealth(DamageAmount);
+	if (DecrementHealth(DamageAmount))
+	{
+		AController* Coontroller = Cast<AController>(EventInstigator);
+		if (Coontroller)	//누가 때리던 간에 그냥 맞아야함, 컨트롤러 연결하는 연습이라도 할겸 연결해봐야함
+		{
+			AMain* Main = Cast<AMain>(Coontroller->GetPawn());
+			if (Main && AnimInstance && DamagedMontage)
+			{
+				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());
+				LookAtRotation.Pitch = 0.f;
+				LookAtRotation.Roll = 0.f;		// (0.f, LookAtRotation.Yaw, 0.f);
+				UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
+				
+				FRotator HitRotation = LookAtRotation - GetActorRotation();
 
+				UE_LOG(LogTemp, Warning, TEXT("%s"), *GetActorRotation().ToString());
+				UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
+
+
+				if (DamageEvent.DamageTypeClass == Main->Basic && !bAttacking)
+				{
+					bDamagedIng = true;
+					
+					if (GetCharacterMovement()->IsWalking())
+					{
+						if ( -45.f <= HitRotation.Yaw && HitRotation.Yaw < 45.f)
+						{
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("FrontHit"), DamagedMontage);
+						}
+						else if ( -135.f <= HitRotation.Yaw && HitRotation.Yaw < -45.f)
+						{
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("RightHit"), DamagedMontage);
+						}
+						else if ( 45.f <= HitRotation.Yaw && HitRotation.Yaw < 135.f)
+						{
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("LeftHit"), DamagedMontage);
+						}
+						else
+						{
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("BackHit"), DamagedMontage);
+						}
+					}
+					else	// 공중 공격 맞을 시
+					{
+						GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+						GetCharacterMovement()->Velocity = FVector(0.f);
+
+						AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+						AnimInstance->Montage_JumpToSection(FName("UpperHit"), DamagedMontage);
+					}
+				}
+				else if (DamageEvent.DamageTypeClass == Main->KnockDown)
+				{
+					bDamagedIng = true;
+					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+					AnimInstance->Montage_JumpToSection(FName("KnockDown"), DamagedMontage);
+				}
+				else if (DamageEvent.DamageTypeClass == Main->Upper)
+				{
+					bDamagedIng = true;
+					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+					AnimInstance->Montage_JumpToSection(FName("Upper"), DamagedMontage);
+
+					SetActorRotation(LookAtRotation);
+
+					FVector LaunchVelocity = GetActorUpVector() * 750.f;
+					LaunchCharacter(LaunchVelocity, false, false);
+				}
+				else if (DamageEvent.DamageTypeClass == Main->Rush)
+				{
+					bDamagedIng = true;
+					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+					AnimInstance->Montage_JumpToSection(FName("Rush"), DamagedMontage);
+
+					FRotator Rotation = Main->GetActorRotation();
+					Rotation.Yaw -= 180.f;
+					SetActorRotation(Rotation);
+					
+					FVector LaunchVelocity = GetActorForwardVector() * -1500.f + GetActorUpVector() * 40.f;
+					LaunchCharacter(LaunchVelocity, false, false);
+				}
+			}
+		}
+	}
+		
 	return DamageAmount;
+}
+
+void AEnemy::AirHitEnd()
+{
+	if (GetCharacterMovement()->IsFlying())
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+	}
+}
+
+void AEnemy::DamagedDownEnd()
+{
+	if (GetCharacterMovement()->IsWalking())	// 지면에 닿았다면
+	{
+		if (AnimInstance && DamagedMontage)
+		{
+			AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+			AnimInstance->Montage_JumpToSection(FName("UpperEnd"), DamagedMontage);
+		}
+	}
+}
+
+void AEnemy::DamagedEnd()
+{
+	bDamagedIng = false;
 }
 
 void AEnemy::DeathEnd()
@@ -350,4 +525,14 @@ bool AEnemy::Alive()	// 살아있으면 true
 void AEnemy::Disappear()
 {
 	Destroy();
+}
+
+void AEnemy::SetEnemyMovementStatus(EEnemyMovementStatus Status)
+{
+	EnemyMovementStatus = Status; 
+}
+
+void AEnemy::PlayMontage(UAnimMontage* MontageName)
+{
+	AnimInstance->Montage_Play(MontageName, 1.0f);
 }

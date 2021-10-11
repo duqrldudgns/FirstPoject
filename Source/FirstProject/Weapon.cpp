@@ -11,6 +11,7 @@
 #include "Components/BoxComponent.h"
 #include "Enemy.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Animation/AnimInstance.h"
 
 AWeapon::AWeapon()
 {
@@ -32,10 +33,12 @@ void AWeapon::BeginPlay()
 	Super::BeginPlay();
 
 	// 충돌 유형 지정
-	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision); // QueryOnly : 물리학 계산 하지 않음
-	CombatCollision->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);	// 모든Dynamic 요소에 대한 충돌
-	CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);	// 그 충돌에 대한 반응은 무시하고
-	CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);	// Pawn에 대한 충돌만 Overlap으로 설정
+	CombatCollision->SetCollisionProfileName("Sword");
+	//CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision); // QueryOnly : 물리학 계산 하지 않음
+	//CombatCollision->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel3);	// 모든Dynamic 요소에 대한 충돌
+	//CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);	// 그 충돌에 대한 반응은 무시하고
+	////CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);	// Pawn에 대한 충돌만 Overlap으로 설정
+	//CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Overlap);	
 
 	CombatCollision->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::CombatOnOverlapBegin);
 	CombatCollision->OnComponentEndOverlap.AddDynamic(this, &AWeapon::CombatOnOverlapEnd);
@@ -73,22 +76,24 @@ void AWeapon::Equip(AMain* Character)
 {
 	if (Character)
 	{
+		WeaponOwner = Cast<AMain>(Character);
+
 		// 장비를 장착할 때 그 캐릭터의 컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
-		SetInstigator(Character->GetController());	
+		SetInstigator(Character->GetController());
 
 		// 카메라와 내 캐릭터에 대한 충돌 무시
 		SkeletalMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 		SkeletalMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
 
 		SkeletalMesh->SetSimulatePhysics(false);	// 물리학 시뮬레이션을 하고 있다면 중단하는 것.. ??
-	
+
 		// "RightHandSocket" 이라는 이름의 소켓을 가져옴
-		const USkeletalMeshSocket* RightHandSocket = Character->GetMesh()->GetSocketByName("RightHandSocket"); 
+		const USkeletalMeshSocket* RightHandSocket = Character->GetMesh()->GetSocketByName("RightHandSocket");
 		if (RightHandSocket)
 		{
 			RightHandSocket->AttachActor(this, Character->GetMesh());	// 그 캐릭터의 소켓에 이 무기를(this) 붙임
 			bRotate = false;
-			
+
 			// 기존 장비 파괴
 			Character->SetEquippedWeapon(this);	// Main에서 이 무기를 다룰 수 있게 함
 			Character->SetActiveOverlappingItem(nullptr);	// 끄지 않으면 계속 overlap 처리 돼있음
@@ -127,8 +132,31 @@ void AWeapon::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 			}
 			if (DamageTypeClass)
 			{
-				// TakeDamage 함수와 연동되어 데미지를 입힘
-				UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+				UAnimInstance* AnimInstance = WeaponOwner->GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+				if (AnimInstance) 
+				{
+					FName SectionName = AnimInstance->Montage_GetCurrentSection();
+					if (SectionName == "Combo01") 
+					{
+						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Basic);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+					}
+					else if (SectionName == "Combo02")
+					{
+						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->KnockDown);
+					}
+					else if (SectionName == "DashAttack")
+					{
+						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Rush);
+					}
+					else if (SectionName == "UpperAttack")
+					{
+						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Upper);
+					}
+					else 
+					{
+						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Basic);
+					}
+				}
 			}
 		}
 	}

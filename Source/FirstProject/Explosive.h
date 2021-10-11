@@ -27,4 +27,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	TSubclassOf<UDamageType> DamageTypeClass;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	AController* ExplosiveInstigator;
+
+	/** 피해를 입힐 때 메인컨트롤러를 얻어야함 */
+	FORCEINLINE void SetInstigator(AController* Inst) { ExplosiveInstigator = Inst; }
 };

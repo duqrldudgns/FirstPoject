@@ -20,14 +20,29 @@
 #include "FirstSaveGame.h"
 #include "ItemStorage.h"
 #include "Math/TransformNonVectorized.h"
-
+#include "TimerManager.h"
+#include "ShootingSkill.h"
+#include "Cpt_FootIK.h"
+#include "Components/DecalComponent.h"
+#include "Particles/ParticleSystemComponent.h"
 
 // Sets default values
 AMain::AMain()
 {
-	
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	FootIK = CreateDefaultSubobject<UCpt_FootIK>(TEXT("FootIK"));
+	
+	SelectDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectDecal"));
+	SelectDecal->SetupAttachment(GetRootComponent());
+	SelectDecal->SetVisibility(false);
+	SelectDecal->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
+	static ConstructorHelpers::FObjectFinder<UMaterial> Decal(TEXT("Material'/Game/GameplayMechanics/test/CharaSelectDecal/CharSelectDecal_MT.CharSelectDecal_MT'"));
+	if (Decal.Succeeded())
+	{
+		SelectDecal->SetDecalMaterial(Decal.Object);
+	}
 
 	// Create Camera Boom (pulls towards the player if there's a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -38,7 +53,7 @@ AMain::AMain()
 
 	// Set size for collision capsule
 	GetCapsuleComponent()->SetCapsuleSize(34.f, 88.f);
-
+	
 	// Create Follow Camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);		// Attach the camera to the end of the boom and let the boom adjust to match 
@@ -87,6 +102,8 @@ AMain::AMain()
 	bGuardAccept = false;
 	bFirstSkillKeyDown = false;
 	bSecondSkillKeyDown = false;
+	bThirdSkillKeyDown = false;
+	bFourthSkillKeyDown = false;
 	bSkillCasting = false;
 	bArmedBridge = false;
 	bArmedBridgeIng = false;
@@ -106,8 +123,11 @@ AMain::AMain()
 
 	WaveSkillDamage = 25.f;
 
-	//컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
-	SetInstigator(GetController());
+	FootRotationL = FRotator::ZeroRotator;
+	FootRotationR = FRotator::ZeroRotator;
+	HipOffset = 0.f;
+	FootOffsetL = 0.f;
+	FootOffsetR = 0.f;
 
 }
 
@@ -116,8 +136,18 @@ void AMain::BeginPlay()
 {
 	Super::BeginPlay();
 
-	MainPlayerController = Cast<AMainPlayerController>(GetController());
+	// 충돌 유형 지정
+	GetCapsuleComponent()->SetCollisionProfileName("Player");
+	//GetCapsuleComponent()->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel1);	//Player
+	//GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Ignore);
+	//GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel4, ECollisionResponse::ECR_Block);
+	//GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
 
+	//컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
+	SetInstigator(GetController());
+
+	MainPlayerController = Cast<AMainPlayerController>(GetController());
+	
 	FString Map = GetWorld()->GetMapName();
 	Map.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 	// 장비를 장착할 때 그 캐릭터의 컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
@@ -277,6 +307,12 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	
 	PlayerInputComponent->BindAction("SecondSkill", IE_Pressed, this, &AMain::SecondSkillKeyDown);
 	PlayerInputComponent->BindAction("SecondSkill", IE_Released, this, &AMain::SecondSkillKeyUp);
+
+	PlayerInputComponent->BindAction("ThirdSkill", IE_Pressed, this, &AMain::ThirdSkillKeyDown);
+	PlayerInputComponent->BindAction("ThirdSkill", IE_Released, this, &AMain::ThirdSkillKeyUp);
+
+	PlayerInputComponent->BindAction("FourthSkill", IE_Pressed, this, &AMain::FourthSkillKeyDown);
+	PlayerInputComponent->BindAction("FourthSkill", IE_Released, this, &AMain::FourthSkillKeyUp);
 
 	PlayerInputComponent->BindAction("Test", IE_Pressed, this, &AMain::TestKeyDown);
 	PlayerInputComponent->BindAction("Test", IE_Released, this, &AMain::TestKeyUp);
@@ -532,7 +568,7 @@ void AMain::EscUp()
 void AMain::InteractionKeyDown()
 {
 	bInteractionKeyDown = true;
-	if (ActiveOverlappingItem)
+	if (ActiveOverlappingItem && !GetMovementComponent()->IsFalling())
 	{
 		AWeapon* Weapon = Cast<AWeapon>(ActiveOverlappingItem);
 		if (Weapon)
@@ -554,6 +590,8 @@ void AMain::ShowPickupLocations()
 	{
 		UKismetSystemLibrary::DrawDebugSphere(this, Location, 25.f, 16, FLinearColor::Green, 5.f, 0.5f);
 	}
+	//float fTimerElapsed = GetWorldTimerManager().GetTimerElapsed(TimerHandle);	//경과 시간 반환
+	//UE_LOG(LogTemp, Warning, TEXT("%f"), fTimerElapsed);
 }
 
 void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
@@ -630,7 +668,8 @@ void AMain::AttackEnd()
 	bComboAttackInput = false;
 	ComboCnt = 0;
 
-	if (GetCharacterMovement()->IsFlying()) {	// 공중 공격 중이었다면
+	if (GetCharacterMovement()->IsFlying())		// 공중 공격 중이었다면
+	{	
 		GetCharacterMovement()->SetMovementMode(MOVE_Falling);	// Falling 상태로 전환, 중력 o 
 	}
 }
@@ -642,10 +681,12 @@ void AMain::ComboAttackInputCheck()
 		bComboAttackInput = false;
 		ComboCnt++;
 
-		if (GetCharacterMovement()->IsFlying()) {	// 공중 공격 중이면
+		if (GetCharacterMovement()->IsFlying()) // 공중 공격 중이면
+		{	
 			AirAttack();
 		}
-		else {
+		else 
+		{
 			Attack();	
 		}
 	}
@@ -666,9 +707,62 @@ void AMain::SetInterpToEnemy(bool Interp)
 
 float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
-	DecrementHealth(DamageAmount, DamageCauser);
+	float HitDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-	return DamageAmount;
+	FRotator LookAtRotation = GetLookAtRotationYaw(DamageCauser->GetActorLocation());
+	
+
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *GetActorRotation().ToString());
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
+
+	if (GetActorRotation().Yaw >= 0.f && LookAtRotation.Yaw >= 0.f)
+	{
+		LookAtRotation.Yaw -= LookAtRotation.Yaw * 2.f;
+	}
+	else if (GetActorRotation().Yaw < 0.f && LookAtRotation.Yaw < 0.f)
+	{
+		LookAtRotation.Yaw -= LookAtRotation.Yaw * 2.f;
+	}
+	FRotator HitRotation = GetActorRotation() + LookAtRotation;
+
+	
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
+
+	if (GetMovementStatus() == EMovementStatus::EMS_Guard)	// 캐릭터가 가드 상태 일 시
+	{
+		if (-90.f < HitRotation.Yaw && HitRotation.Yaw < 90.f)
+		{
+			SetGuardAccept(true);
+
+			if (GuardAcceptSound)
+			{
+				UGameplayStatics::PlaySound2D(this, GuardAcceptSound);
+			}
+		}
+		else //뒷쪽에서 공격 시
+		{
+			DecrementHealth(HitDamage, DamageCauser);
+		}
+	}
+	else 
+	{
+		if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
+		{
+		}
+			DecrementHealth(HitDamage, DamageCauser);
+
+		if (HitParticles)
+		{
+			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitParticles, GetActorLocation(), FRotator(0.f), false);
+		}
+		if (HitSound)
+		{
+			UGameplayStatics::PlaySound2D(this, HitSound);
+		}
+	}
+
+	return HitDamage;
 }
 
 FRotator AMain::GetLookAtRotationYaw(FVector Target)
@@ -901,6 +995,40 @@ void AMain::SecondSkillKeyUp()
 	bSecondSkillKeyDown = false;
 }
 
+void AMain::ThirdSkillKeyDown()
+{
+	bThirdSkillKeyDown = true;
+
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+	if (EquippedWeapon && CanAction())
+	{
+		DashAttack();
+	}
+}
+
+void AMain::ThirdSkillKeyUp()
+{
+	bThirdSkillKeyDown = false;
+}
+
+void AMain::FourthSkillKeyDown()
+{
+	bFourthSkillKeyDown = true;
+
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+	if (EquippedWeapon && CanAction())
+	{
+		UpperAttack();
+	}
+}
+
+void AMain::FourthSkillKeyUp()
+{
+	bFourthSkillKeyDown = false;
+}
+
 void AMain::PlaySkillMontage(FName Section)
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
@@ -933,16 +1061,13 @@ void AMain::SkillCastEnd()
 
 void AMain::FireBallSkillActivation()
 {
-	UWorld* World = GetWorld();
-	
-	if (World && FireBall)
+	if (FireBall)
 	{
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = this;
-		FRotator Rotator = GetActorRotation();
-		FVector  SpawnLocation = GetActorLocation();
 
-		GetWorld()->SpawnActor<AItem>(FireBall, GetActorLocation(), GetActorRotation());
+		AShootingSkill* ShootingSkill = GetWorld()->SpawnActor<AShootingSkill>(FireBall, GetActorLocation(), GetActorRotation(), SpawnParams);
+		ShootingSkill->SetInstigator(GetController());
 	}
 }
 
@@ -965,8 +1090,8 @@ void AMain::PlayFireBallSkillSound()
 	}
 }
 
-void AMain::WaveSkillActivation() {
-
+void AMain::WaveSkillActivation() 
+{
 	FVector ActorLoc = GetActorLocation();
 	FVector ActorForward = GetActorForwardVector();
 	FVector StartLoc = ActorLoc; // 레이저 시작 지점.
@@ -975,8 +1100,8 @@ void AMain::WaveSkillActivation() {
 	float Radius = 100.f;
 
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes; // 히트 가능한 오브젝트 유형들.
-	TEnumAsByte<EObjectTypeQuery> Pawn = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_Pawn);
-	ObjectTypes.Add(Pawn);
+	TEnumAsByte<EObjectTypeQuery> Target = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel2);
+	ObjectTypes.Add(Target);	//Enemy
 
 	TArray<AActor*> IgnoreActors; // 무시할 액터들.
 
@@ -1016,10 +1141,11 @@ void AMain::WaveSkillActivation() {
 				{
 					UGameplayStatics::PlaySound2D(this, Enemy->HitSound);
 				}
-				if (DamageTypeClass)
-				{
+				if (Basic)
+				{FName SectionName = GetMesh()->GetAnimInstance()->Montage_GetCurrentSection();
 					// TakeDamage 함수와 연동되어 데미지를 입힘
-					UGameplayStatics::ApplyDamage(Enemy, WaveSkillDamage, MainInstigator, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+					UGameplayStatics::ApplyDamage(Enemy, WaveSkillDamage, MainInstigator, this, Basic);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+					//UE_LOG(LogTemp, Warning, TEXT("%s"), HitResult);
 				}
 			}
 		}
@@ -1051,3 +1177,74 @@ void AMain::SkillKeyDownCheck()
 	}
 }
 
+void AMain::DashAttack()
+{
+	bAttacking = true;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+	if (AnimInstance && CombatMontage)
+	{
+		AnimInstance->Montage_Play(CombatMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
+		AnimInstance->Montage_JumpToSection("DashAttack", CombatMontage);	//해당 섹션 실행
+	}
+}
+
+void AMain::UpperAttack()
+{
+	bAttacking = true;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+	if (AnimInstance && CombatMontage)
+	{
+		AnimInstance->Montage_Play(CombatMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
+		AnimInstance->Montage_JumpToSection("UpperAttack", CombatMontage);	//해당 섹션 실행
+	}
+
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			FVector LaunchVelocity = GetActorUpVector() * 700.f;
+			LaunchCharacter(LaunchVelocity, false, false);
+
+			// TimerHandle 초기화
+			GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
+		}), 0.5f, false);	// 반복하려면 false를 true로 변경
+}
+
+FVector AMain::GetFloor()
+{
+	FVector ActorLoc = GetActorLocation();
+	FVector ActorUp = GetActorUpVector();
+	FVector StartLoc = ActorLoc; // 레이저 시작 지점.
+	FVector EndLoc = ActorLoc + (ActorUp * -1000.0f); // 레이저 끝나는 지점.
+
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes; // 히트 가능한 오브젝트 유형들.
+	TEnumAsByte<EObjectTypeQuery> WorldStatic = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldStatic);
+	ObjectTypes.Add(WorldStatic);
+
+	TArray<AActor*> IgnoreActors; // 무시할 액터들.
+
+	FHitResult HitResult; // 히트 결과 값 받을 변수.
+
+	bool Result = UKismetSystemLibrary::LineTraceSingleForObjects(
+		GetWorld(),
+		StartLoc,
+		EndLoc,
+		ObjectTypes,
+		false,
+		IgnoreActors, // 무시할 것이 없다고해도 null을 넣을 수 없다.
+		EDrawDebugTrace::ForDuration,	// 디버그
+		HitResult,
+		true
+		// 여기 밑에 3개는 기본 값으로 제공됨. 바꾸려면 적으면 됨.
+		//, FLinearColor::Red
+		//, FLinearColor::Green
+		//, 5.0f
+	);
+
+	if (Result)
+	{
+		return HitResult.ImpactPoint;
+	}
+
+	return FVector(0.f);
+}

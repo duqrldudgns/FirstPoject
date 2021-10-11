@@ -1,0 +1,92 @@
+
+- 가드 시 뒷 공격은 받음, 맞는 방향에 따른 모션 
+applypointdamage, hitfromdirection
+
+- 타격시 속도감 제어
+animmontage play rate 재생속도 변경
+
+- 타격감
+카메라 쉐이크
+
+- 몽타주 재생 중 몰입감
+PostProcess와 Meterial의 Depth, SceneTexture를 사용
+
+- 순간이동하는 대쉬 공격
+MoveComponentTo로 플레이어가 지나간 자리의 적들을 Trace로 찾아 데미지 
+
+-포탈 생성 및 이동
+포탈 생성 위치는 마우스 포인터 위치 - GetHitResultUnderCursorForObject
+
+-광역 기술
+가운데로 끌어들여 몇초후 폭발
+
+-차징
+//float fTimerElapsed = GetWorldTimerManager().GetTimerElapsed(TimerHandle);	//경과 시간 반환
+//UE_LOG(LogTemp, Warning, TEXT("%f"), fTimerElapsed);
+
+-물체 밀기
+
+
+- 활 조준 시 시점이 당겨지고 CrossHair 와 투사체의 방향이 일치하도록
+
+-화살이 포물선궤적
+Tick에서 화살의 Velocity와 회전을 Lerp
+
+- 화살에 맞을 시 (헤드샷)
+맞은 위치와 Skeletal Mesh의 가장 가까운 Socket Bone에 화살을 Attack 
+
+- 화약통 화살과 충돌시 폭발
+Trigger 로 DestructibeMesh에 Impulse를 가하는 방식
+
+- 주변에 폭발물이 있다면
+Trace로 찾고 일정시간 Delay 후 연쇄로 폭발하도록
+
+- 활 스킬 시 또는 점프 후 활 공격 시 
+게임시간 흐름 제어 global time dilation , Custom time dilation
+느려진동안 공격키를 눌러 표시한 방향을 배열에 집어넣고 , 제어가 끝나면 발사하도록
+
+
+
+- 파쿠르
+액터 컴포넌트에 의해 동작
+모든 동작은 기본적으로 Trace를 통해 이루어짐, 미리부착된 Ledge 액터와의 상호작용
+
+
+AI
+대기 or 순찰 중 플레이어 감지
+- AI Perception의 Sight 감지, 무기를 꺼내고 BehaviorTree에 의한 동작이 실행
+
+Idle 상태 일 때 플레이어의 주변을 맴도는 움직임
+- EnvQuery로 구현
+
+전방에 있을 시 쿨타임 없이 공격, 후방에서는 바로 공격
+
+
+보스
+
+보스필드에 들어섰을 때 Trigger가 작동하여 시네마틱 재생
+https://mingyu0403.tistory.com/212?category=916231
+
+돌진 중에 MovementMode 상태를 Fly상태로 바꾸고 MoveComponentTo 함수를 사용해서 이동
+
+
+
+-구역마다 발스텝에 맞춰 파티클
+niagara system
+
+- IK
+발바닥
+
+
+맵
+
+보스맵
+- EnvironmentPack2 원형경기장 크기 키워서
+
+-----------------
+
+clear
+
+- 구역마다 발소리
+Physical Material 기반으로 구현 Line Trace로 Surface Type
+			hitResult.PhysMaterial
