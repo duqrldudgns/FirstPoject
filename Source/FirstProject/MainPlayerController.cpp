@@ -17,6 +17,7 @@ void AMainPlayerController::BeginPlay()
 			HUDOverlay->SetVisibility(ESlateVisibility::Visible);
 		}
 	}
+
 	if (WEnemyHealthBar)
 	{
 		EnemyHealthBar = CreateWidget<UUserWidget>(this, WEnemyHealthBar);
@@ -28,6 +29,7 @@ void AMainPlayerController::BeginPlay()
 		FVector2D Alignment(0.f, 0.f);
 		EnemyHealthBar->SetAlignmentInViewport(Alignment);	// 평평하고 화면을 향하도록 설정
 	}
+
 	if (WPauseMenu)
 	{
 		PauseMenu = CreateWidget<UUserWidget>(this, WPauseMenu);

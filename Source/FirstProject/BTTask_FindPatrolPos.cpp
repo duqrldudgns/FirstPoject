@@ -25,7 +25,8 @@ EBTNodeResult::Type UBTTask_FindPatrolPos::ExecuteTask(UBehaviorTreeComponent& O
 	FNavLocation NextPatrol;
 	if (NavSystem->GetRandomPointInNavigableRadius(Origin, 1500.0f, NextPatrol))	//랜덤한 위치를 얻어서, Blackboard의 키 값에 저장
 	{
-		OwnerComp.GetBlackboardComponent()->SetValueAsVector(AEnemyAIController::PatrolPosKey, NextPatrol.Location); UE_LOG(LogTemp, Warning, TEXT("%s"), *NextPatrol.Location.ToString());
+		OwnerComp.GetBlackboardComponent()->SetValueAsVector(AEnemyAIController::PatrolPosKey, NextPatrol.Location); 
+		//UE_LOG(LogTemp, Warning, TEXT("%s"), *NextPatrol.Location.ToString());
 		return EBTNodeResult::Succeeded;
 	}
 

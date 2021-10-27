@@ -41,7 +41,7 @@ void UBTService_Detect::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 	{
 		for (FOverlapResult OverlapResult : OverlapResults)
 		{
-			DrawDebugLine(World, ControllingPawn->GetActorLocation(), OverlapResult.GetActor()->GetActorLocation(), FColor::Red, false, 1.f);
+			//DrawDebugLine(World, ControllingPawn->GetActorLocation(), OverlapResult.GetActor()->GetActorLocation(), FColor::Red, false, 1.f);
 
 			AMain* Main = Cast<AMain>(OverlapResult.GetActor());
 			if (Main && Main->GetController()->IsPlayerController())	//플레이어 컨트롤러인지 파악
@@ -65,7 +65,7 @@ void UBTService_Detect::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 		OwnerComp.GetBlackboardComponent()->SetValueAsObject(AEnemyAIController::TargetKey, nullptr);
 	}
 
-	DrawDebugSphere(World, Center, ControllingPawn->DetectRadius, 16, FColor::Red, false, 0.2f);
+	//DrawDebugSphere(World, Center, ControllingPawn->DetectRadius, 16, FColor::Red, false, 0.2f);
 	/*
 	1. Selector는 자식 중 하나가 성공할 때까지, 왼쪽 노드에서 오른쪽 노드로 실행한다.
 	2. 왼쪽 시퀀스 실행. Target이 없으므로 실패.

@@ -37,16 +37,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetEnemyMovementStatus(EEnemyMovementStatus Status);
-
 	FORCEINLINE EEnemyMovementStatus GetEnemyMovementStatus() { return EnemyMovementStatus; }
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
-	class USphereComponent* AgroSphere;
+	
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	//class USphereComponent* AgroSphere;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
-	USphereComponent* CombatSphere;
+	class USphereComponent* CombatSphere;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
 	class UDecalComponent* SelectDecal;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	class UWidgetComponent* HealthBar;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	class AAIController* AIController;
@@ -105,10 +108,10 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	UFUNCTION()
-	virtual void AgroSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-	UFUNCTION()
-	virtual void AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	//UFUNCTION()
+	//virtual void AgroSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	//UFUNCTION()
+	//virtual void AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UFUNCTION()
 	virtual void CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -187,5 +190,15 @@ public:
 
 	class UAnimInstance* AnimInstance;
 
+	
+	FTimerHandle DisplayHealthBarHandle;
+	float DisplayHealthBarTime;
+	
+	void DisplayHealthBar();
+	void RemoveHealthBar();
 
+	/** 한번 맞을 때 중복해서 안맞도록 */
+	bool bHitOnce;
+
+	void ResetHitOnce();
 };

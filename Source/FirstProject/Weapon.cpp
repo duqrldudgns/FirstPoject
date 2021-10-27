@@ -109,22 +109,35 @@ void AWeapon::Equip(AMain* Character)
 	}
 }
 
+void AWeapon::UnEquip()
+{
+	if (WeaponOwner) {
+		const USkeletalMeshSocket* SwordBack = WeaponOwner->GetMesh()->GetSocketByName("Sword_Back");
+		if (SwordBack)
+		{
+			SwordBack->AttachActor(this, WeaponOwner->GetMesh());
+			
+			WeaponOwner->SetEquippedWeapon(nullptr);
+			
+			WeaponState = EWeaponState::EWS_Pickup;
+		}
+
+		if (OnEquipSound) UGameplayStatics::PlaySound2D(this, OnEquipSound);
+	}
+}
+
 void AWeapon::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (OtherActor)
 	{
 		AEnemy* Enemy = Cast<AEnemy>(OtherActor);
-		if (Enemy)
+		if (Enemy && !Enemy->bHitOnce)
 		{
+			Enemy->bHitOnce = true;
+
 			if (Enemy->HitParticles)
 			{
-				// 스켈레톤에 들어가 설정해둔 소켓 이름인 "WeaponSocket"을 가져와 그 위치에 효과 발생		-	Enemy 설정과 비슷하지만 다르니 참고, 이건 SkeletalMesh를 미리 설정 해뒀기 때문에 가능
-				const USkeletalMeshSocket* WeaponSocket = SkeletalMesh->GetSocketByName("WeaponSocket");
-				if (WeaponSocket)
-				{
-					FVector SocketLocation = WeaponSocket->GetSocketLocation(SkeletalMesh);
-					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Enemy->HitParticles, SocketLocation, FRotator(0.f), false);
-				}
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Enemy->HitParticles, Enemy->GetMesh()->GetSocketLocation("spine_02"), FRotator(0.f), false);
 			}
 			if (Enemy->HitSound)	// 때렸을 때 Enemy에서 나는 소리
 			{
@@ -156,8 +169,14 @@ void AWeapon::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 					{
 						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Basic);
 					}
+
+					Enemy->DisplayHealthBar();
+					WeaponOwner->GetWorld()->GetFirstPlayerController()->PlayerCameraManager->StartCameraShake(WeaponOwner->CamShake);
+
+					Enemy->ResetHitOnce();
 				}
 			}
+			
 		}
 	}
 }

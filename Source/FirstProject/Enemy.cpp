@@ -20,17 +20,18 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnemyAIController.h"
 #include "Components/DecalComponent.h"
+#include "Components/WidgetComponent.h"
 
 
 // Sets default values
 AEnemy::AEnemy()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	AgroSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AgroSphere"));
-	AgroSphere->SetupAttachment(GetRootComponent());
-	AgroSphere->InitSphereRadius(600.f);
+	//AgroSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AgroSphere"));
+	//AgroSphere->SetupAttachment(GetRootComponent());
+	//AgroSphere->InitSphereRadius(600.f);
 
 	CombatSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CombatSphere"));
 	CombatSphere->SetupAttachment(GetRootComponent());
@@ -49,10 +50,18 @@ AEnemy::AEnemy()
 		SelectDecal->SetDecalMaterial(Decal.Object);
 	}
 
+	HealthBar = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
+	HealthBar->SetupAttachment(GetRootComponent());
+	HealthBar->SetRelativeLocation(FVector(0.f, 0.f, 100.f));
+	HealthBar->SetWidgetSpace(EWidgetSpace::Screen);
+	HealthBar->SetDrawSize(FVector2D(120.f, 15.f));
+	HealthBar->SetVisibility(false);
+
 	bOverlappingCombatSphere = false;
 	bAttacking = false;
 	bHasValidTarget = false;
 	bDamagedIng = false;
+	bHitOnce = false;
 
 	Health = 75.f;
 	MaxHealth = 100.f;
@@ -70,13 +79,15 @@ AEnemy::AEnemy()
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;	//레벨에 배치하거나 새로 생성되는 Enemy는 EnemyAIController의 지배를 받게됨
 
 	DetectRadius = 600.f;
+
+	DisplayHealthBarTime = 5.f;
 }
 
 // Called when the game starts or when spawned
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
 
 	AIController = Cast<AAIController>(GetController());
@@ -93,9 +104,9 @@ void AEnemy::BeginPlay()
 	CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);	// 그 충돌에 대한 반응은 무시하고
 	CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Overlap);	// Pawn에 대한 충돌만 Overlap으로 설정
 
-	AgroSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapBegin);
-	AgroSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapEnd);
-	AgroSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);	// pickup을 agro로 터트리지 않기 위함
+	//AgroSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapBegin);
+	//AgroSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapEnd);
+	//AgroSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);	// pickup을 agro로 터트리지 않기 위함
 
 	CombatSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapBegin);
 	CombatSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapEnd);
@@ -112,7 +123,6 @@ void AEnemy::BeginPlay()
 void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 // Called to bind functionality to input
@@ -122,43 +132,43 @@ void AEnemy::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 }
 
-void AEnemy::AgroSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	if (OtherActor && Alive())
-	{
-		AMain* Main = Cast<AMain>(OtherActor);
-		if (Main)
-		{
-			MoveToTarget(Main);
-		}
-	}
-}
-
-void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	if (OtherActor)
-	{
-		AMain* Main = Cast<AMain>(OtherActor);
-		if (Main)
-		{
-			if (Alive()) 
-			{
-				SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
-			}
-			GetCharacterMovement()->MaxWalkSpeed = 300.f;
-
-			if (AIController)
-			{
-				AIController->StopMovement();
-			}
-		
-			Main->UpdateCombatTarget();
-			
-			CombatTarget = nullptr;
-			bHasValidTarget = false;
-		}
-	}
-}
+//void AEnemy::AgroSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+//{
+//	if (OtherActor && Alive())
+//	{
+//		AMain* Main = Cast<AMain>(OtherActor);
+//		if (Main)
+//		{
+//			MoveToTarget(Main);
+//		}
+//	}
+//}
+//
+//void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+//{
+//	if (OtherActor)
+//	{
+//		AMain* Main = Cast<AMain>(OtherActor);
+//		if (Main)
+//		{
+//			if (Alive()) 
+//			{
+//				SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
+//			}
+//			GetCharacterMovement()->MaxWalkSpeed = 300.f;
+//
+//			if (AIController)
+//			{
+//				AIController->StopMovement();
+//			}
+//		
+//			Main->UpdateCombatTarget();
+//			
+//			CombatTarget = nullptr;
+//			bHasValidTarget = false;
+//		}
+//	}
+//}
 
 void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -298,7 +308,7 @@ void AEnemy::DeActivateCollision()
 
 void AEnemy::Attack()
 {
-	if (!bAttacking && Alive() )// && bHasValidTarget)
+	if (!bAttacking && Alive())// && bHasValidTarget)
 	{
 		bAttacking = true;
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
@@ -321,9 +331,9 @@ void AEnemy::Attack()
 void AEnemy::AttackEnd()
 {
 	bAttacking = false;
-	
+
 	OnAttackEnd.Broadcast();	// 델리게이트를 호출
-	
+
 	//GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([&]()
 	//{
 	//	if (bOverlappingCombatSphere) {
@@ -385,7 +395,7 @@ void AEnemy::Die()
 	}
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
@@ -403,34 +413,31 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());
 				LookAtRotation.Pitch = 0.f;
 				LookAtRotation.Roll = 0.f;		// (0.f, LookAtRotation.Yaw, 0.f);
-				UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
-				
-				FRotator HitRotation = LookAtRotation - GetActorRotation();
+				//UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
 
-				UE_LOG(LogTemp, Warning, TEXT("%s"), *GetActorRotation().ToString());
+				FRotator HitRotation = UKismetMathLibrary::NormalizedDeltaRotator(LookAtRotation, GetActorRotation());
 				UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
-
 
 				if (DamageEvent.DamageTypeClass == Main->Basic && !bAttacking)
 				{
 					bDamagedIng = true;
-					
+
 					if (GetCharacterMovement()->IsWalking())
 					{
-						if ( -45.f <= HitRotation.Yaw && HitRotation.Yaw < 45.f)
+						if (-45.f <= HitRotation.Yaw && HitRotation.Yaw < 45.f)
 						{
 							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 							AnimInstance->Montage_JumpToSection(FName("FrontHit"), DamagedMontage);
 						}
-						else if ( -135.f <= HitRotation.Yaw && HitRotation.Yaw < -45.f)
-						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("RightHit"), DamagedMontage);
-						}
-						else if ( 45.f <= HitRotation.Yaw && HitRotation.Yaw < 135.f)
+						else if (-135.f <= HitRotation.Yaw && HitRotation.Yaw < -45.f)
 						{
 							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 							AnimInstance->Montage_JumpToSection(FName("LeftHit"), DamagedMontage);
+						}
+						else if (45.f <= HitRotation.Yaw && HitRotation.Yaw < 135.f)
+						{
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("RightHit"), DamagedMontage);
 						}
 						else
 						{
@@ -473,14 +480,14 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 					FRotator Rotation = Main->GetActorRotation();
 					Rotation.Yaw -= 180.f;
 					SetActorRotation(Rotation);
-					
+
 					FVector LaunchVelocity = GetActorForwardVector() * -1500.f + GetActorUpVector() * 40.f;
 					LaunchCharacter(LaunchVelocity, false, false);
 				}
 			}
 		}
 	}
-		
+
 	return DamageAmount;
 }
 
@@ -529,10 +536,39 @@ void AEnemy::Disappear()
 
 void AEnemy::SetEnemyMovementStatus(EEnemyMovementStatus Status)
 {
-	EnemyMovementStatus = Status; 
+	EnemyMovementStatus = Status;
 }
 
 void AEnemy::PlayMontage(UAnimMontage* MontageName)
 {
 	AnimInstance->Montage_Play(MontageName, 1.0f);
+}
+
+void AEnemy::DisplayHealthBar()
+{
+	if (!HealthBar->GetVisibleFlag())
+	{
+		HealthBar->SetVisibility(true);
+		GetWorldTimerManager().SetTimer(DisplayHealthBarHandle, this, &AEnemy::RemoveHealthBar, DisplayHealthBarTime);
+	}
+	else 
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
+		GetWorldTimerManager().SetTimer(DisplayHealthBarHandle, this, &AEnemy::RemoveHealthBar, DisplayHealthBarTime);
+	}
+}
+
+void AEnemy::RemoveHealthBar()
+{
+	HealthBar->SetVisibility(false);
+}
+
+void AEnemy::ResetHitOnce()
+{
+	FTimerHandle WaitHandle;
+	float WaitTime = 0.2f;
+	GetWorld()->GetTimerManager().SetTimer(WaitHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			bHitOnce = false;
+		}), WaitTime, false);
 }

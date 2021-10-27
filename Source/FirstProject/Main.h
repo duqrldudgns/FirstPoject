@@ -30,15 +30,16 @@ enum class EStaminaStatus : uint8
 	ESS_MAX					UMETA(DisplayName = "DefaultMAX")
 };
 
-//UENUM(BlueprintType)
-//enum class EArmedStatus : uint8
-//{
-//	//EAS : E Armed Status
-//	EAS_Normal				UMETA(DisplayName = "Normal"),
-//	EAS_Sword				UMETA(DisplayName = "Sword"),
-//
-//	ESS_MAX					UMETA(DisplayName = "DefaultMAX")
-//};
+UENUM(BlueprintType)
+enum class EArmedStatus : uint8
+{
+	//EAS : E Armed Status
+	EAS_Normal				UMETA(DisplayName = "Normal"),
+	EAS_Sword				UMETA(DisplayName = "Sword"),
+	EAS_Bow					UMETA(DisplayName = "Bow"),
+
+	ESS_MAX					UMETA(DisplayName = "DefaultMAX")
+};
 
 UCLASS()
 class FIRSTPROJECT_API AMain : public ACharacter
@@ -55,12 +56,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ShowPickupLocations();
 
-	///** Armed Status*/
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
-	//EArmedStatus ArmedStatus;
+	/** Armed Status*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
+	EArmedStatus ArmedStatus;
 
-	//void SetArmedStatus(EArmedStatus Status);
-	//FORCEINLINE EArmedStatus GetArmedStatus() { return ArmedStatus; }
+	FORCEINLINE void SetArmedStatus(EArmedStatus Status) { ArmedStatus = Status; }
+	FORCEINLINE EArmedStatus GetArmedStatus() { return ArmedStatus; }
 
 	/** Stamina Status */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
@@ -80,6 +81,9 @@ public:
 	* 적이 나를 공격대상으로 정했을 때 그 대상을 향하도록 설정 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat")
 	class AEnemy* CombatTarget;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Combat")
+	AEnemy* BossTarget;
 
 	FORCEINLINE void SetCombatTarget(AEnemy* Target) { CombatTarget = Target; }
 
@@ -133,6 +137,8 @@ public:
 	void ShiftKeyUp();
 
 	virtual void Jump() override;
+		
+	virtual void StopJumping() override;
 
 	/** Camera boom positioning the camera behind the player */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))	// 코드상에서는 private이지만 에디터 상에서는 수정 가능
@@ -148,8 +154,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sword", meta = (AllowPrivateAccess = "true"))
+	class UChildActorComponent* SwordAttached;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
 	class UDecalComponent* SelectDecal;
+
+
 
 
 	/** Foot IK */
@@ -310,15 +321,18 @@ public:
 	void SetEquippedWeapon(AWeapon* WeaponToSet);
 	FORCEINLINE AWeapon* GetEquippedWeapon() { return EquippedWeapon; }
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Anims")
-	bool bArmedBridge;	// 브릿지 애니메이션을 실행 했는지
-	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* WeaponEquipMontage;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Anims")
 	bool bArmedBridgeIng;
 
 	UFUNCTION(BlueprintCallable)
-	void ArmedBridgeStart();
+	void Equip();
 
+	UFUNCTION(BlueprintCallable)
+	void UnEquip();
+	
 	UFUNCTION(BlueprintCallable)
 	void ArmedBridgeEnd();
 
@@ -375,6 +389,7 @@ public:
 	void GuardAcceptEnd();
 
 	/** Save & Load Data*/
+	UFUNCTION(BlueprintCallable)
 	void SwitchLevel(FName LevelName);
 
 	UFUNCTION(BlueprintCallable)
@@ -408,7 +423,7 @@ public:
 	/** 피해를 입힐 때 메인컨트롤러를 얻어야함 */
 	FORCEINLINE void SetInstigator(AController* Inst) { MainInstigator = Inst; }
 
-	void PlaySkillMontage(FName Section);
+	void PlayMontage(UAnimMontage* Montage, FName Section);
 
 	/** FireBallSkill */
 	void FireBallSkillCast();
@@ -460,6 +475,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
 	class UAnimMontage* DodgeMontage;
 
+	UFUNCTION(BlueprintCallable)
+	void DodgeStart();
+
+	UFUNCTION(BlueprintCallable)
+	void DodgeEnd();
+
+	bool bDodgeIng;
+	
 	/** Dash Attack */
 	void DashAttack();
 
@@ -483,6 +506,41 @@ public:
 
 	FTimerHandle TimerHandle;
 
-
 	FVector GetFloor();
+
+
+	/**Arrow Set*/
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
+	//float DefaultFieldOfView;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
+	//float DefaultArmLength;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
+	//float DefaultMaxWalkSpeed;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
+	//float TraceRadius;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
+	//float DistanceToAimAssistTarget;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
+	//float MaxAimAssistDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
+	bool bGotHit;
+
+	UFUNCTION(BlueprintCallable)
+	void DamagedEnd();
+
+	/** 강공격 받을 시 캐스팅(Ing)중일 경우 bIng를 풀기 위함 */
+	UFUNCTION(BlueprintCallable)
+	void CastingReset();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
+	float AimPitch;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
+	float AimYaw;
+
+
+	/** Camera Shake */
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class UMatineeCameraShake> CamShake;
 };

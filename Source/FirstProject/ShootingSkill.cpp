@@ -4,6 +4,7 @@
 #include "ShootingSkill.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Enemy.h"
+#include "Main.h"
 
 AShootingSkill::AShootingSkill() 
 {
@@ -27,6 +28,7 @@ void AShootingSkill::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		if (Enemy)
 		{
 			Super::OnOverlapBegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
+			Enemy->DisplayHealthBar();
 		}
 	}
 }

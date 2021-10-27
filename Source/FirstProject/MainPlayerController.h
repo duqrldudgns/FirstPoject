@@ -19,6 +19,7 @@ public:
 	/** Reference to the UMG asset in the editor 
 	*	블루프린트에서 설정함
 	*/
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widgets")	
 	TSubclassOf<class UUserWidget> HUDOverlayAsset;
 

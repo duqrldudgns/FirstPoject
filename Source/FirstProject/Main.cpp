@@ -25,6 +25,8 @@
 #include "Cpt_FootIK.h"
 #include "Components/DecalComponent.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "Components/ChildActorComponent.h"
+#include "Components/WidgetComponent.h"
 
 // Sets default values
 AMain::AMain()
@@ -33,7 +35,12 @@ AMain::AMain()
 	PrimaryActorTick.bCanEverTick = true;
 
 	FootIK = CreateDefaultSubobject<UCpt_FootIK>(TEXT("FootIK"));
-	
+
+	// Create SwordAttached
+	SwordAttached = CreateDefaultSubobject<UChildActorComponent>(TEXT("SwordAttached"));
+	SwordAttached->SetupAttachment(GetMesh(), "Sword_Back");		// Attach the camera to the end of the boom and let the boom adjust to match 
+
+	// Create Character Select Decal
 	SelectDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectDecal"));
 	SelectDecal->SetupAttachment(GetRootComponent());
 	SelectDecal->SetVisibility(false);
@@ -53,7 +60,7 @@ AMain::AMain()
 
 	// Set size for collision capsule
 	GetCapsuleComponent()->SetCapsuleSize(34.f, 88.f);
-	
+
 	// Create Follow Camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);		// Attach the camera to the end of the boom and let the boom adjust to match 
@@ -74,7 +81,7 @@ AMain::AMain()
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.f, 0.0f);	// ...at this rotation rate , yaw에 해당하는 부분의 값을 올리면 회전속도가 빨라짐
 	GetCharacterMovement()->JumpZVelocity = 650.f;	// 점프 폭
 	GetCharacterMovement()->AirControl = 0.2f;	// 점프 시 제어강도
-	
+
 	JumpMaxHoldTime = 0.1f;
 	JumpMaxCount = 2;
 
@@ -105,14 +112,14 @@ AMain::AMain()
 	bThirdSkillKeyDown = false;
 	bFourthSkillKeyDown = false;
 	bSkillCasting = false;
-	bArmedBridge = false;
 	bArmedBridgeIng = false;
 	bTestKeyDown = false;
+	bDodgeIng = false;
 
 	//Initialize Enums
 	MovementStatus = EMovementStatus::EMS_Normal;
 	StaminaStatus = EStaminaStatus::ESS_Normal;
-	//ArmedStatus = EArmedStatus::EAS_Normal;
+	ArmedStatus = EArmedStatus::EAS_Normal;
 
 	StaminaDrainRate = 20.f;
 	MinSprintStamina = 30.f;
@@ -129,6 +136,14 @@ AMain::AMain()
 	FootOffsetL = 0.f;
 	FootOffsetR = 0.f;
 
+	//DefaultFieldOfView = 0.f;
+	//DefaultArmLength = 0.f;
+	//DefaultMaxWalkSpeed = 0.f;
+	//TraceRadius = 50.f;
+	//DistanceToAimAssistTarget = 0.f;
+	//MaxAimAssistDistance = 2000.f;
+
+	bGotHit = false;
 }
 
 // Called when the game starts or when spawned
@@ -147,7 +162,7 @@ void AMain::BeginPlay()
 	SetInstigator(GetController());
 
 	MainPlayerController = Cast<AMainPlayerController>(GetController());
-	
+
 	FString Map = GetWorld()->GetMapName();
 	Map.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 	// 장비를 장착할 때 그 캐릭터의 컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
@@ -264,12 +279,20 @@ void AMain::Tick(float DeltaTime)
 	if (bRMBDown)
 	{
 		if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
-		
+
 		if (EquippedWeapon && CanAction() && !GetMovementComponent()->IsFalling())
-		{ 
+		{
 			SetMovementStatus(EMovementStatus::EMS_Guard);
 		}
 	}
+
+	//if (Aiming) 
+	FRotator CurrentRotation(AimPitch, AimYaw, 0.f);
+	FRotator TargetRotation = UKismetMathLibrary::NormalizedDeltaRotator(GetControlRotation(), GetActorRotation());
+
+	FRotator InterpRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, InterpSpeed);
+	AimPitch = InterpRotation.Pitch;
+	AimYaw = InterpRotation.Yaw;
 
 }
 
@@ -282,7 +305,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	//해당하는 키를 누르면 이에 맞는 함수 호출
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMain::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Jump", IE_Released, this, &AMain::StopJumping);
 
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUp);
@@ -304,7 +327,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	PlayerInputComponent->BindAction("FirstSkill", IE_Pressed, this, &AMain::FirstSkillKeyDown);
 	PlayerInputComponent->BindAction("FirstSkill", IE_Released, this, &AMain::FirstSkillKeyUp);
-	
+
 	PlayerInputComponent->BindAction("SecondSkill", IE_Pressed, this, &AMain::SecondSkillKeyDown);
 	PlayerInputComponent->BindAction("SecondSkill", IE_Released, this, &AMain::SecondSkillKeyUp);
 
@@ -331,15 +354,15 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 bool AMain::CanMove(float Value)
 {
-	return Controller != nullptr && Value != 0.0f && 
-		!MainPlayerController->bPauseMenuVisible;
-		//&& CanAction();
+	return Controller != nullptr && Value != 0.0f &&
+		!MainPlayerController->bPauseMenuVisible
+		&& Alive() && !bAttacking && !bSkillCasting && !bGotHit;
 }
 
 bool AMain::CanAction()
 {
-	return Alive() && !bAttacking && !bSkillCasting && !bArmedBridgeIng &&
-		GetMovementStatus() != EMovementStatus::EMS_Guard;
+	return Alive() && !bAttacking && !bSkillCasting && !bGotHit &&
+		!bArmedBridgeIng && !bDodgeIng && GetMovementStatus() != EMovementStatus::EMS_Guard;
 }
 
 void AMain::MoveForward(float Value)
@@ -409,6 +432,16 @@ void AMain::Jump()
 	}
 }
 
+void AMain::StopJumping()
+{
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;	// 메뉴창 실행중이라면 리턴
+
+	if (CanAction())
+	{
+		ACharacter::StopJumping();	// =  Super::StopJumping();
+	}
+}
+
 void AMain::IncrementCoins(int32 Amount)
 {
 	Coins += Amount;
@@ -453,7 +486,7 @@ void AMain::Die()
 	if (!Alive() && MovementStatus == EMovementStatus::EMS_Dead) return;
 
 	SetMovementStatus(EMovementStatus::EMS_Dead);
-	
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
 	if (AnimInstance && DamagedMontage)
 	{
@@ -482,7 +515,7 @@ void AMain::SetMovementStatus(EMovementStatus Status)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = SprintingSpeed;
 	}
-	else if(MovementStatus == EMovementStatus::EMS_Normal)
+	else if (MovementStatus == EMovementStatus::EMS_Normal)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = RunningSpeed;
 	}
@@ -507,7 +540,7 @@ void AMain::LMBDown()
 	bLMBDown = true;
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
-	
+
 	if (EquippedWeapon && CanAction())
 	{
 		if (GetCharacterMovement()->IsFalling()) {	// 공중 공격
@@ -519,7 +552,7 @@ void AMain::LMBDown()
 
 		bComboAttackInput = false;	//@@@@@ FIX TODO : 주석처리 시 첫 공격때만 콤보가 적용이 됨
 	}
-	else 
+	else
 	{
 		bComboAttackInput = true;
 	}
@@ -568,15 +601,19 @@ void AMain::EscUp()
 void AMain::InteractionKeyDown()
 {
 	bInteractionKeyDown = true;
-	if (ActiveOverlappingItem && !GetMovementComponent()->IsFalling())
+
+	AWeapon* Weapon = Cast<AWeapon>(SwordAttached->GetChildActor());
+	if (Weapon && !GetMovementComponent()->IsFalling() && GetArmedStatus() == EArmedStatus::EAS_Normal)
 	{
-		AWeapon* Weapon = Cast<AWeapon>(ActiveOverlappingItem);
-		if (Weapon)
-		{
-			//SetArmedStatus(EArmedStatus::EAS_Sword);
-			Weapon->Equip(this);
-		}
+		bArmedBridgeIng = true;
+		PlayMontage(WeaponEquipMontage, "SwordEquip");
 	}
+	else if (Weapon && !GetMovementComponent()->IsFalling() && GetArmedStatus() == EArmedStatus::EAS_Sword)
+	{
+		bArmedBridgeIng = true;
+		PlayMontage(WeaponEquipMontage, "SwordUnEquip");
+	}
+
 }
 
 void AMain::InteractionKeyUp()
@@ -596,19 +633,27 @@ void AMain::ShowPickupLocations()
 
 void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 {
-	if (EquippedWeapon)
-	{
-		EquippedWeapon->Destroy();
-	}
-
 	EquippedWeapon = WeaponToSet;
 }
 
-void AMain::ArmedBridgeStart()
+void AMain::Equip()
 {
-	bArmedBridgeIng = true;
+	AWeapon* Weapon = Cast<AWeapon>(SwordAttached->GetChildActor());
+	if (Weapon)
+	{
+		SetArmedStatus(EArmedStatus::EAS_Sword);
+		Weapon->Equip(this);
+	}
+}
 
-	bArmedBridge = !bArmedBridge;
+void AMain::UnEquip()
+{
+	AWeapon* Weapon = Cast<AWeapon>(SwordAttached->GetChildActor());
+	if (Weapon)
+	{
+		SetArmedStatus(EArmedStatus::EAS_Normal);
+		Weapon->UnEquip();
+	}
 }
 
 void AMain::ArmedBridgeEnd()
@@ -624,7 +669,7 @@ void AMain::Attack()
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
 	if (AnimInstance && CombatMontage)
 	{
-		const char* ComboList[] = { "Combo01", "Combo02" };
+		FName ComboList[] = { "Combo01", "Combo02" };
 		if (!(AnimInstance->Montage_IsPlaying(CombatMontage)))	//애니메이션이 실행 중이지 않을 때
 		{
 			AnimInstance->Montage_Play(CombatMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
@@ -642,12 +687,14 @@ void AMain::AirAttack() {
 	bAttacking = true;
 	//if (CombatTarget) SetInterpToEnemy(true);	// 적이 나를 공격 대상으로 삼았다면 공격 보정이 가능한 상태로 만듦
 
+	int32 Temp = JumpCurrentCount;
 	GetCharacterMovement()->SetMovementMode(MOVE_Flying);	// Flying 상태로 전환 , 중력 x
+	JumpCurrentCount = Temp;
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
 	if (AnimInstance && JumpCombatMontage)
 	{
-		const char* ComboList[] = { "JumpCombo01", "JumpCombo02", "JumpCombo03", "JumpCombo04", "JumpCombo05", "JumpCombo06", };
+		FName ComboList[] = { "JumpCombo01", "JumpCombo02", "JumpCombo03", "JumpCombo04", "JumpCombo05", "JumpCombo06", };
 		if (!(AnimInstance->Montage_IsPlaying(JumpCombatMontage)))	//애니메이션이 실행 중이지 않을 때
 		{
 			AnimInstance->Montage_Play(JumpCombatMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
@@ -669,7 +716,7 @@ void AMain::AttackEnd()
 	ComboCnt = 0;
 
 	if (GetCharacterMovement()->IsFlying())		// 공중 공격 중이었다면
-	{	
+	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Falling);	// Falling 상태로 전환, 중력 o 
 	}
 }
@@ -682,12 +729,12 @@ void AMain::ComboAttackInputCheck()
 		ComboCnt++;
 
 		if (GetCharacterMovement()->IsFlying()) // 공중 공격 중이면
-		{	
+		{
 			AirAttack();
 		}
-		else 
+		else
 		{
-			Attack();	
+			Attack();
 		}
 	}
 }
@@ -710,47 +757,75 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 	float HitDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
 	FRotator LookAtRotation = GetLookAtRotationYaw(DamageCauser->GetActorLocation());
-	
 
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *GetActorRotation().ToString());
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
-
-	if (GetActorRotation().Yaw >= 0.f && LookAtRotation.Yaw >= 0.f)
-	{
-		LookAtRotation.Yaw -= LookAtRotation.Yaw * 2.f;
-	}
-	else if (GetActorRotation().Yaw < 0.f && LookAtRotation.Yaw < 0.f)
-	{
-		LookAtRotation.Yaw -= LookAtRotation.Yaw * 2.f;
-	}
-	FRotator HitRotation = GetActorRotation() + LookAtRotation;
-
-	
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
+	FRotator HitRotation = UKismetMathLibrary::NormalizedDeltaRotator(LookAtRotation, GetActorRotation());
 	UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
 
-	if (GetMovementStatus() == EMovementStatus::EMS_Guard)	// 캐릭터가 가드 상태 일 시
-	{
-		if (-90.f < HitRotation.Yaw && HitRotation.Yaw < 90.f)
-		{
-			SetGuardAccept(true);
+	//if (!bGotHit) {
+	//	bGotHit = true;
+	//	
+	//	FTimerHandle HitTimerHandle;
+	//	GetWorld()->GetTimerManager().SetTimer(HitTimerHandle, FTimerDelegate::CreateLambda([&]()
+	//		{
+	//			bGotHit = false;
 
-			if (GuardAcceptSound)
-			{
-				UGameplayStatics::PlaySound2D(this, GuardAcceptSound);
-			}
-		}
-		else //뒷쪽에서 공격 시
+	//			// TimerHandle 초기화
+	//			GetWorld()->GetTimerManager().ClearTimer(HitTimerHandle);
+	//		}), 0.3f, false);	// 반복하려면 false를 true로 변경
+	//}
+
+
+	if (GetMovementStatus() == EMovementStatus::EMS_Guard && -90.f < HitRotation.Yaw && HitRotation.Yaw < 90.f)	// 캐릭터가 가드 상태 일 시
+	{
+		SetGuardAccept(true);
+
+		if (GuardAcceptSound)
 		{
-			DecrementHealth(HitDamage, DamageCauser);
+			UGameplayStatics::PlaySound2D(this, GuardAcceptSound);
 		}
 	}
-	else 
+	else //뒷쪽에서 공격 시, 가드 아닐 시 
 	{
+		if (!bGotHit)
+		{
+			if (DamageEvent.DamageTypeClass == KnockDown)
+			{
+				bGotHit = true;
+				CastingReset();
+				PlayMontage(DamagedMontage, "KnockDown");
+			}
+			else if (DamageEvent.DamageTypeClass == Upper)
+			{
+				bGotHit = true;
+				CastingReset();
+				PlayMontage(DamagedMontage, "Upper");
+
+				SetActorRotation(LookAtRotation);
+				FVector LaunchVelocity = GetActorUpVector() * 750.f;
+				LaunchCharacter(LaunchVelocity, false, false);
+			}
+			else if (DamageEvent.DamageTypeClass == Rush)
+			{
+				bGotHit = true;
+				CastingReset();
+				PlayMontage(DamagedMontage, "Rush");
+
+				SetActorRotation(LookAtRotation);
+				FVector LaunchVelocity = GetActorForwardVector() * -1500.f + GetActorUpVector() * 40.f;
+				LaunchCharacter(LaunchVelocity, false, false);
+			}
+			else
+			{
+				int32 Num = FMath::RandRange(0, 1);
+				FName MontageList[] = { "Damaged01", "Damaged02" };
+				PlayMontage(DamagedMontage, MontageList[Num]);
+			}
+		}
+
 		if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
 		{
-		}
 			DecrementHealth(HitDamage, DamageCauser);
+		}
 
 		if (HitParticles)
 		{
@@ -763,6 +838,26 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 	}
 
 	return HitDamage;
+}
+
+void AMain::CastingReset()	//무언가 동작 중에 다른 동작을 요구할 때
+{
+	if (bAttacking) AttackEnd();
+	if (bSkillCasting) SkillCastEnd();
+	if (bArmedBridgeIng) ArmedBridgeEnd();
+	// bow의 aiming 같은거 처리해야함
+
+	UAnimInstance* Montage = GetMesh()->GetAnimInstance();
+	if (Montage->GetCurrentActiveMontage() != DodgeMontage)
+	{
+		Montage->StopAllMontages(0.f);
+	}
+
+}
+
+void AMain::DamagedEnd()
+{
+	bGotHit = false;
 }
 
 FRotator AMain::GetLookAtRotationYaw(FVector Target)
@@ -1029,13 +1124,13 @@ void AMain::FourthSkillKeyUp()
 	bFourthSkillKeyDown = false;
 }
 
-void AMain::PlaySkillMontage(FName Section)
+void AMain::PlayMontage(UAnimMontage* Montage, FName Section)
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
-	if (AnimInstance && SkillMontage)
+	if (AnimInstance && Montage)
 	{
-		AnimInstance->Montage_Play(SkillMontage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
-		AnimInstance->Montage_JumpToSection(Section, SkillMontage);	//해당 섹션 실행
+		AnimInstance->Montage_Play(Montage, 1.0f);	// 해당 몽타주를 해당 속도로 실행
+		AnimInstance->Montage_JumpToSection(Section, Montage);	//해당 섹션 실행
 	}
 }
 
@@ -1043,14 +1138,14 @@ void AMain::FireBallSkillCast()
 {
 	bSkillCasting = true;
 
-	PlaySkillMontage("Skill01");
+	PlayMontage(SkillMontage, "Skill01");
 }
 
 void AMain::WaveSkillCast()
 {
 	bSkillCasting = true;
 
-	PlaySkillMontage("Skill02");
+	PlayMontage(SkillMontage, "Skill02");
 
 }
 
@@ -1075,7 +1170,7 @@ void AMain::PlayFireBallSkillParticle()
 {
 	FVector ActorFloorLocation = GetActorLocation();
 	ActorFloorLocation.Z -= 100.f;
-	
+
 	if (FireBallSkillParticle)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), FireBallSkillParticle, ActorFloorLocation, GetActorRotation(), true);
@@ -1090,7 +1185,7 @@ void AMain::PlayFireBallSkillSound()
 	}
 }
 
-void AMain::WaveSkillActivation() 
+void AMain::WaveSkillActivation()
 {
 	FVector ActorLoc = GetActorLocation();
 	FVector ActorForward = GetActorForwardVector();
@@ -1122,7 +1217,7 @@ void AMain::WaveSkillActivation()
 		//, FLinearColor::Red
 		//, FLinearColor::Green
 		//, 5.0f
-		);
+	);
 
 	if (Result == true)
 	{
@@ -1130,7 +1225,7 @@ void AMain::WaveSkillActivation()
 		// HitResult에서 필요한 값들을 사용하면 됨.
 		for (auto HitResult : HitResults) {
 			AEnemy* Enemy = Cast<AEnemy>(HitResult.Actor);
-			if (Enemy) 
+			if (Enemy)
 			{
 				//@@@@@ TODO : 적이 맞을 때 스킬의 파티클과 사운드도 있으면 좋을듯
 				if (Enemy->HitParticles)
@@ -1142,9 +1237,11 @@ void AMain::WaveSkillActivation()
 					UGameplayStatics::PlaySound2D(this, Enemy->HitSound);
 				}
 				if (Basic)
-				{FName SectionName = GetMesh()->GetAnimInstance()->Montage_GetCurrentSection();
+				{
+					FName SectionName = GetMesh()->GetAnimInstance()->Montage_GetCurrentSection();
 					// TakeDamage 함수와 연동되어 데미지를 입힘
 					UGameplayStatics::ApplyDamage(Enemy, WaveSkillDamage, MainInstigator, this, Basic);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+					Enemy->DisplayHealthBar();
 					//UE_LOG(LogTemp, Warning, TEXT("%s"), HitResult);
 				}
 			}
@@ -1152,9 +1249,9 @@ void AMain::WaveSkillActivation()
 	}
 }
 
-void AMain::PlayWaveSkillParticle() 
+void AMain::PlayWaveSkillParticle()
 {
-	
+
 	if (WaveSkillParticle)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), WaveSkillParticle, GetActorLocation(), GetActorRotation(), true);
@@ -1173,7 +1270,7 @@ void AMain::SkillKeyDownCheck()
 {
 	if (!bSecondSkillKeyDown)
 	{
-		PlaySkillMontage("Skill02End");
+		PlayMontage(SkillMontage, "Skill02End");
 	}
 }
 
@@ -1202,7 +1299,7 @@ void AMain::UpperAttack()
 
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([&]()
 		{
-			FVector LaunchVelocity = GetActorUpVector() * 700.f;
+			FVector LaunchVelocity = GetActorUpVector() * 650.f;
 			LaunchCharacter(LaunchVelocity, false, false);
 
 			// TimerHandle 초기화
@@ -1232,7 +1329,7 @@ FVector AMain::GetFloor()
 		ObjectTypes,
 		false,
 		IgnoreActors, // 무시할 것이 없다고해도 null을 넣을 수 없다.
-		EDrawDebugTrace::ForDuration,	// 디버그
+		EDrawDebugTrace::None,	// 디버그
 		HitResult,
 		true
 		// 여기 밑에 3개는 기본 값으로 제공됨. 바꾸려면 적으면 됨.
@@ -1247,4 +1344,18 @@ FVector AMain::GetFloor()
 	}
 
 	return FVector(0.f);
+}
+
+void AMain::DodgeStart()
+{
+	bDodgeIng = true;
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Overlap);	// Enemy에 대한 충돌 설정
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);	// Enemy의 무기
+}
+
+void AMain::DodgeEnd()
+{
+	bDodgeIng = false;
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);	// Enemy에 대한 충돌 설정
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Block);	// Enemy의 무기
 }

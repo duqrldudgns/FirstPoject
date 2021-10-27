@@ -95,7 +95,7 @@ ST_IK_TraceInfo UCpt_FootIK::IK_FootTrace(float fTraceDistance, FName sSocket)
     if (bDebug == true) eDebug = EDrawDebugTrace::ForOneFrame;
 
     bool bResult = UKismetSystemLibrary::LineTraceSingle(GetWorld(), pLine_Start, pLine_End,
-        UEngineTypes::ConvertToTraceType(ECC_Visibility), true, pIgnore, eDebug, pHitResult, true);
+        UEngineTypes::ConvertToTraceType(ECC_Visibility), true, pIgnore, EDrawDebugTrace::None, pHitResult, true);
 
     // Set ImpactNormal and Offset from HitResult
     pTraceInfo.pImpactLocation = pHitResult.ImpactNormal;
