@@ -791,13 +791,13 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 			if (DamageEvent.DamageTypeClass == KnockDown)
 			{
 				bGotHit = true;
-				CastingReset();
+				ResetCasting();
 				PlayMontage(DamagedMontage, "KnockDown");
 			}
 			else if (DamageEvent.DamageTypeClass == Upper)
 			{
 				bGotHit = true;
-				CastingReset();
+				ResetCasting();
 				PlayMontage(DamagedMontage, "Upper");
 
 				SetActorRotation(LookAtRotation);
@@ -807,7 +807,7 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 			else if (DamageEvent.DamageTypeClass == Rush)
 			{
 				bGotHit = true;
-				CastingReset();
+				ResetCasting();
 				PlayMontage(DamagedMontage, "Rush");
 
 				SetActorRotation(LookAtRotation);
@@ -816,9 +816,15 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 			}
 			else
 			{
+				UAnimInstance* Montage = GetMesh()->GetAnimInstance();
+
 				int32 Num = FMath::RandRange(0, 1);
 				FName MontageList[] = { "Damaged01", "Damaged02" };
-				PlayMontage(DamagedMontage, MontageList[Num]);
+				if (!Montage->GetCurrentActiveMontage())
+				{
+					ResetCasting();
+					PlayMontage(DamagedMontage, MontageList[Num]);
+				}
 			}
 		}
 
@@ -840,7 +846,7 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 	return HitDamage;
 }
 
-void AMain::CastingReset()	//무언가 동작 중에 다른 동작을 요구할 때
+void AMain::ResetCasting()	//무언가 동작 중에 다른 동작을 요구할 때
 {
 	if (bAttacking) AttackEnd();
 	if (bSkillCasting) SkillCastEnd();
@@ -922,7 +928,7 @@ void AMain::SwitchLevel(FName LevelName)
 	{
 		FString CurrentLevel = World->GetMapName();							// output : UEDPIE_0_SunTemple
 		CurrentLevel.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);	// 앞에 붙은 접두사 제거
-		//UE_LOG(LogTemp, Warning, TEXT("MapName : %s"), *CurrentLevel)		// output : SunTemple
+		UE_LOG(LogTemp, Warning, TEXT("MapName : %s, LevelName : %s"), *CurrentLevel, *LevelName.ToString());		// output : SunTemple
 
 		FName CurrentLevelName(*CurrentLevel);	//FString 에서 FName 으로는 변환 가능, 반대는 불가능
 		if (CurrentLevelName != LevelName)

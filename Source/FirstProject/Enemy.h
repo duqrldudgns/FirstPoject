@@ -201,4 +201,6 @@ public:
 	bool bHitOnce;
 
 	void ResetHitOnce();
+
+	void ResetCasting();
 };

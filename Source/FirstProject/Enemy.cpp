@@ -418,6 +418,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 				FRotator HitRotation = UKismetMathLibrary::NormalizedDeltaRotator(LookAtRotation, GetActorRotation());
 				UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
 
+				UE_LOG(LogTemp, Warning, TEXT("%d"), bAttacking);
 				if (DamageEvent.DamageTypeClass == Main->Basic && !bAttacking)
 				{
 					bDamagedIng = true;
@@ -447,6 +448,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 					}
 					else	// 공중 공격 맞을 시
 					{
+
 						GetCharacterMovement()->SetMovementMode(MOVE_Flying);
 						GetCharacterMovement()->Velocity = FVector(0.f);
 
@@ -457,30 +459,32 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 				else if (DamageEvent.DamageTypeClass == Main->KnockDown)
 				{
 					bDamagedIng = true;
+					bAttacking = false;
+
 					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 					AnimInstance->Montage_JumpToSection(FName("KnockDown"), DamagedMontage);
 				}
 				else if (DamageEvent.DamageTypeClass == Main->Upper)
 				{
 					bDamagedIng = true;
+					bAttacking = false;
+
 					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 					AnimInstance->Montage_JumpToSection(FName("Upper"), DamagedMontage);
 
 					SetActorRotation(LookAtRotation);
-
 					FVector LaunchVelocity = GetActorUpVector() * 750.f;
 					LaunchCharacter(LaunchVelocity, false, false);
 				}
 				else if (DamageEvent.DamageTypeClass == Main->Rush)
 				{
 					bDamagedIng = true;
+					bAttacking = false;
+
 					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 					AnimInstance->Montage_JumpToSection(FName("Rush"), DamagedMontage);
 
-					FRotator Rotation = Main->GetActorRotation();
-					Rotation.Yaw -= 180.f;
-					SetActorRotation(Rotation);
-
+					SetActorRotation(LookAtRotation);
 					FVector LaunchVelocity = GetActorForwardVector() * -1500.f + GetActorUpVector() * 40.f;
 					LaunchCharacter(LaunchVelocity, false, false);
 				}
@@ -514,6 +518,7 @@ void AEnemy::DamagedDownEnd()
 void AEnemy::DamagedEnd()
 {
 	bDamagedIng = false;
+	ResetCasting();
 }
 
 void AEnemy::DeathEnd()
@@ -561,6 +566,18 @@ void AEnemy::DisplayHealthBar()
 void AEnemy::RemoveHealthBar()
 {
 	HealthBar->SetVisibility(false);
+}
+
+void AEnemy::ResetCasting()	//무언가 동작 중에 다른 동작을 요구할 때
+{
+	AttackEnd();
+	AirHitEnd();
+
+	UAnimInstance* Montage = GetMesh()->GetAnimInstance();
+	if (Montage->GetCurrentActiveMontage())
+	{
+		Montage->StopAllMontages(0.f);
+	}
 }
 
 void AEnemy::ResetHitOnce()

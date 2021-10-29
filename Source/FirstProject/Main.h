@@ -532,7 +532,7 @@ public:
 
 	/** 강공격 받을 시 캐스팅(Ing)중일 경우 bIng를 풀기 위함 */
 	UFUNCTION(BlueprintCallable)
-	void CastingReset();
+	void ResetCasting();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
 	float AimPitch;
