@@ -5,6 +5,8 @@
 #include "DrawDebugHelpers.h"
 #include "Enemy.h"
 #include "BossSevarogAIController.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "BossSevarog.h"
 
 UBTService_Detect::UBTService_Detect()
 {
@@ -18,6 +20,7 @@ void UBTService_Detect::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 
 	AEnemy* ControllingPawn = Cast<AEnemy>(OwnerComp.GetAIOwner()->GetPawn());
 	if (nullptr == ControllingPawn) return;
+	ABossSevarog* Boss = Cast<ABossSevarog>(OwnerComp.GetAIOwner()->GetPawn());
 
 	UWorld* World = ControllingPawn->GetWorld();
 	if (nullptr == World) return;
@@ -51,11 +54,12 @@ void UBTService_Detect::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 				// Main면, 블랙보드에 저장한다.
 				OwnerComp.GetBlackboardComponent()->SetValueAsObject(AEnemyAIController::TargetKey, Main);
 				OwnerComp.GetBlackboardComponent()->SetValueAsVector(ABossSevarogAIController::TargetLocKey, TargetLoc);
-				
+				if (nullptr == Boss) ControllingPawn->GetCharacterMovement()->MaxWalkSpeed = 400.f;
+
 				// 디버깅 용.
-				DrawDebugSphere(World, Center, ControllingPawn->DetectRadius, 16, FColor::Green, false, 0.2f);
-				DrawDebugPoint(World, Main->GetActorLocation(), 10.0f, FColor::Blue, false, 0.2f);
-				DrawDebugLine(World, ControllingPawn->GetActorLocation(), Main->GetActorLocation(), FColor::Blue, false, 0.2f);
+				//DrawDebugSphere(World, Center, ControllingPawn->DetectRadius, 16, FColor::Green, false, 0.2f);
+				//DrawDebugPoint(World, Main->GetActorLocation(), 10.0f, FColor::Blue, false, 0.2f);
+				//DrawDebugLine(World, ControllingPawn->GetActorLocation(), Main->GetActorLocation(), FColor::Blue, false, 0.2f);
 				return;
 			}
 		}
@@ -63,6 +67,7 @@ void UBTService_Detect::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 	else
 	{
 		OwnerComp.GetBlackboardComponent()->SetValueAsObject(AEnemyAIController::TargetKey, nullptr);
+		if (nullptr == Boss) ControllingPawn->GetCharacterMovement()->MaxWalkSpeed = 200.f;
 	}
 
 	//DrawDebugSphere(World, Center, ControllingPawn->DetectRadius, 16, FColor::Red, false, 0.2f);

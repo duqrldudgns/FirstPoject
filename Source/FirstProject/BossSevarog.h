@@ -48,6 +48,9 @@ public:
 	TSubclassOf<class AThunderstroke> Thunderstroke;
 
 	UFUNCTION(BlueprintCallable)
+	void CreateThunderDecal();
+
+	UFUNCTION(BlueprintCallable)
 	void ActiveThunderstroke();
 
 	FVector ThunderSpawnLoc;
@@ -55,5 +58,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Decal")
 	TSubclassOf<class APositionDecal> PositionDecal;
 
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	FVector GetRandomPoint();
+
+	TArray<FVector> RandomPoints;
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
 };

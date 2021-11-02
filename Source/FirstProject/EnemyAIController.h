@@ -23,7 +23,9 @@ public:
 	static const FName HomePosKey;
 	static const FName PatrolPosKey;
 	static const FName TargetKey;
-
+	static const FName RandomNumKey;
+	static const FName CanAttackKey;
+	static const FName DamagedIngKey;
 private:
 
 	UPROPERTY()

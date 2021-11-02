@@ -22,6 +22,6 @@ void UBTService_RandomNum::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* No
 	AEnemy* ControllingPawn = Cast<AEnemy>(OwnerComp.GetAIOwner()->GetPawn());
 	if (nullptr == ControllingPawn) return;
 
-	int32 Num = FMath::RandRange(0,2);
+	int32 Num = FMath::RandRange(0,1);
 	OwnerComp.GetBlackboardComponent()->SetValueAsInt(ABossSevarogAIController::RandomNumKey, Num);
 }

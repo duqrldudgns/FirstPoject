@@ -51,6 +51,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	class UWidgetComponent* HealthBar;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sword", meta = (AllowPrivateAccess = "true"))
+	class UChildActorComponent* SwordAttached;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	class AAIController* AIController;
 
@@ -84,9 +87,7 @@ public:
 
 	FTimerHandle AttackTimer;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	float AttackDelay;
-
+	
 	/** 손상 유형 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	TSubclassOf<UDamageType> DamageTypeClass;
@@ -140,6 +141,13 @@ public:
 	FTimerHandle TimerHandle;
 	float TimerRemaining;
 
+	int32 DamType;
+	UFUNCTION(BlueprintCallable)
+	void UpperActivate();
+	UFUNCTION(BlueprintCallable)
+	void KnockDownActivate();
+	UFUNCTION(BlueprintCallable)
+	void RushActivate();
 	UFUNCTION(BlueprintCallable)
 	void ActivateCollision();
 	UFUNCTION(BlueprintCallable)
@@ -181,6 +189,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void DamagedEnd();
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
 	bool bDamagedIng;
 
 	
@@ -203,4 +212,10 @@ public:
 	void ResetHitOnce();
 
 	void ResetCasting();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	bool bCanAttack;
+
+	void AttackDelay();
+	float AttDelay;
 };

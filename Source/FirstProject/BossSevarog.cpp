@@ -47,6 +47,8 @@ ABossSevarog::ABossSevarog()
 	
 	DetectRadius = 4000.f;
 
+	AttDelay = 8.f;
+
 }
 
 void ABossSevarog::BeginPlay()
@@ -65,7 +67,12 @@ void ABossSevarog::RushAttack()
 	if (!bAttacking && Alive())
 	{
 		bAttacking = true;
+		bCanAttack = false;
+		bDamagedIng = false;
+
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
+
+		AttackDelay();
 
 		if (Controller)
 		{
@@ -87,7 +94,7 @@ void ABossSevarog::RushAttack()
 
 void ABossSevarog::Rush()
 {
-	GetCharacterMovement()->MaxWalkSpeed = 2000.f;
+	GetCharacterMovement()->MaxWalkSpeed = 8000.f;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Overlap);	// Player에 대한 충돌 설정
 
 	if (Controller)
@@ -109,6 +116,7 @@ void ABossSevarog::AttackEnd()
 
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Block);
+
 }
 
 void ABossSevarog::CapsuleOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -131,32 +139,53 @@ void ABossSevarog::ThunderstrokeAttack()
 	if (!bAttacking && Alive())
 	{
 		bAttacking = true;
+		bCanAttack = false;
+		bDamagedIng = false;
+
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
 
-		if (Controller)
-		{
-			AMain* Main = Cast<AMain>(Controller->GetBlackboardComponent()->GetValueAsObject(ABossSevarogAIController::TargetKey));
-			if (Main) {
-				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());	// 목표 방향 Rotation을 반환
-				FRotator LookAtRotationYaw(0.f, LookAtRotation.Yaw, 0.f);
+		AttackDelay();
 
-				SetActorRotation(LookAtRotationYaw);
-
-				if (PositionDecal)
-				{
-					FActorSpawnParameters SpawnParams;
-					SpawnParams.Owner = this;
-
-					ThunderSpawnLoc = Main->GetFloor();
-					
-					GetWorld()->SpawnActor<APositionDecal>(PositionDecal, ThunderSpawnLoc, FRotator(0.f), SpawnParams);
-				}
-			}
-		}
 		if (AnimInstance && ThunderstrokeMontage)
 		{
 			AnimInstance->Montage_Play(ThunderstrokeMontage, 1.0f);
 			AnimInstance->Montage_JumpToSection(FName("Thunderstroke"), ThunderstrokeMontage);
+		}
+
+		CreateThunderDecal();
+	}
+}
+
+void ABossSevarog::CreateThunderDecal()
+{
+	if (Controller)
+	{
+		AMain* Main = Cast<AMain>(Controller->GetBlackboardComponent()->GetValueAsObject(ABossSevarogAIController::TargetKey));
+		if (Main) {
+			FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());	// 목표 방향 Rotation을 반환
+			FRotator LookAtRotationYaw(0.f, LookAtRotation.Yaw, 0.f);
+
+			SetActorRotation(LookAtRotationYaw);
+
+			if (PositionDecal)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.Owner = this;
+
+				ThunderSpawnLoc = Main->GetFloor();
+
+				GetWorld()->SpawnActor<APositionDecal>(PositionDecal, ThunderSpawnLoc, FRotator(0.f), SpawnParams);
+
+				int32 ThunderSpawnCount = 30;
+				for (int32 i = 0; i < ThunderSpawnCount; i++)
+				{
+					FVector Point = GetRandomPoint();
+					Point.Z = ThunderSpawnLoc.Z;
+					RandomPoints.Push(Point);
+
+					GetWorld()->SpawnActor<APositionDecal>(PositionDecal, Point, FRotator(0.f), SpawnParams);
+				}
+			}
 		}
 	}
 }
@@ -170,5 +199,81 @@ void ABossSevarog::ActiveThunderstroke()
 
 		AThunderstroke* Thunder = GetWorld()->SpawnActor<AThunderstroke>(Thunderstroke, ThunderSpawnLoc, FRotator(0.f), SpawnParams);
 		Thunder->SetInstigator(GetController());
+
+		for (auto Point : RandomPoints)
+		{
+			AThunderstroke* Thunders = GetWorld()->SpawnActor<AThunderstroke>(Thunderstroke, Point, FRotator(0.f), SpawnParams);
+			Thunders->SetInstigator(GetController());
+		}
+		RandomPoints.Empty();
 	}
+}
+
+FVector ABossSevarog::GetRandomPoint()
+{
+	FVector Origin = GetActorLocation();
+	FVector Extent = FVector(3000.f, 3000.f, 0.f);
+
+	FVector Point = UKismetMathLibrary::RandomPointInBoundingBox(Origin, Extent);	// Origin을 기준으로 Extent만큼 그 크기 내에서 랜덤한 포인트를 설정
+
+	return Point;
+}
+
+float ABossSevarog::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
+{
+	if (DecrementHealth(DamageAmount) && !bAttacking)
+	{
+		AController* Coontroller = Cast<AController>(EventInstigator);
+		if (Coontroller)	//누가 때리던 간에 그냥 맞아야함, 컨트롤러 연결하는 연습이라도 할겸 연결해봐야함
+		{
+			AMain* Main = Cast<AMain>(Coontroller->GetPawn());
+			if (Main && AnimInstance && DamagedMontage && !bDamagedIng)
+			{
+				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());
+				LookAtRotation.Pitch = 0.f;
+				LookAtRotation.Roll = 0.f;		// (0.f, LookAtRotation.Yaw, 0.f);
+				//UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
+
+				FRotator HitRotation = UKismetMathLibrary::NormalizedDeltaRotator(LookAtRotation, GetActorRotation());
+				UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
+
+				UE_LOG(LogTemp, Warning, TEXT("%d"), bAttacking);
+				if (DamageEvent.DamageTypeClass == Main->Basic)
+				{
+					//bDamagedIng = true;
+
+					if (-45.f <= HitRotation.Yaw && HitRotation.Yaw < 45.f)
+					{
+						AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+						AnimInstance->Montage_JumpToSection(FName("FrontHit"), DamagedMontage);
+					}
+					else if (-135.f <= HitRotation.Yaw && HitRotation.Yaw < -45.f)
+					{
+						AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+						AnimInstance->Montage_JumpToSection(FName("LeftHit"), DamagedMontage);
+					}
+					else if (45.f <= HitRotation.Yaw && HitRotation.Yaw < 135.f)
+					{
+						AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+						AnimInstance->Montage_JumpToSection(FName("RightHit"), DamagedMontage);
+					}
+					else
+					{
+						AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+						AnimInstance->Montage_JumpToSection(FName("BackHit"), DamagedMontage);
+					}
+				}
+				else
+				{
+					bDamagedIng = true;
+					bAttacking = false;
+
+					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+					AnimInstance->Montage_JumpToSection(FName("KnockDown"), DamagedMontage);
+				}
+			}
+		}
+	}
+
+	return DamageAmount;
 }

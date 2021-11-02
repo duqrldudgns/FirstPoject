@@ -12,6 +12,8 @@ const FName ABossSevarogAIController::TargetKey(TEXT("Target"));
 const FName ABossSevarogAIController::RandomNumKey(TEXT("RandomNum"));
 const FName ABossSevarogAIController::DistanceKey(TEXT("Distance"));
 const FName ABossSevarogAIController::TargetLocKey(TEXT("TargetLoc"));
+const FName ABossSevarogAIController::CanAttackKey(TEXT("CanAttack"));
+const FName ABossSevarogAIController::DamagedIngKey(TEXT("DamagedIng"));
 
 ABossSevarogAIController::ABossSevarogAIController()
 {
@@ -37,7 +39,8 @@ void ABossSevarogAIController::OnPossess(APawn* InPawn)
 		RunBehaviorTree(BTSevarog);
 		
 		Blackboard->SetValueAsVector(HomePosKey, InPawn->GetActorLocation());
-		Blackboard->SetValueAsInt(RandomNumKey, 0);
-
+		Blackboard->SetValueAsInt(RandomNumKey, 2);
+		Blackboard->SetValueAsFloat(DistanceKey, 10000.f);
+		Blackboard->SetValueAsBool(CanAttackKey, true);
 	}
 }

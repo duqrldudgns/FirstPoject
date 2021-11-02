@@ -9,6 +9,7 @@
 #include "DrawDebugHelpers.h"
 #include "Enemy.h"
 #include "Main.h"
+#include "Sound/SoundCue.h"
 
 AThunderstroke::AThunderstroke()
 {
@@ -33,11 +34,15 @@ void AThunderstroke::BeginPlay()
 
 	GetWorldTimerManager().SetTimer(HitTimer, this, &AThunderstroke::HitOverlap, HitDelay);
 
+	if (OverlapSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, OverlapSound, GetActorLocation());
+	}
 }
 
 void AThunderstroke::CapsuleOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT("%d"), ExplosiveInstigator);
+	//UE_LOG(LogTemp, Warning, TEXT("%d"), ExplosiveInstigator);
 
 }
 
@@ -60,4 +65,5 @@ void AThunderstroke::HitOverlap()
 			UGameplayStatics::ApplyDamage(Main, Damage, ExplosiveInstigator, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
 		}
 	}
+
 }

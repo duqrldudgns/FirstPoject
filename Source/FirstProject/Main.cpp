@@ -793,6 +793,9 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 				bGotHit = true;
 				ResetCasting();
 				PlayMontage(DamagedMontage, "KnockDown");
+
+				FVector LaunchVelocity = GetActorUpVector() * -1500.f;
+				LaunchCharacter(LaunchVelocity, false, false);
 			}
 			else if (DamageEvent.DamageTypeClass == Upper)
 			{
@@ -830,8 +833,8 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 
 		if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
 		{
-			DecrementHealth(HitDamage, DamageCauser);
 		}
+			DecrementHealth(HitDamage, DamageCauser);
 
 		if (HitParticles)
 		{
@@ -848,9 +851,16 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 
 void AMain::ResetCasting()	//무언가 동작 중에 다른 동작을 요구할 때
 {
-	if (bAttacking) AttackEnd();
 	if (bSkillCasting) SkillCastEnd();
 	if (bArmedBridgeIng) ArmedBridgeEnd();
+	if (bAttacking) {
+		AttackEnd();
+		AWeapon* Weapon = Cast<AWeapon>(SwordAttached->GetChildActor());
+		if (Weapon)
+		{
+			Weapon->DeActivateCollision();
+		}
+	}
 	// bow의 aiming 같은거 처리해야함
 
 	UAnimInstance* Montage = GetMesh()->GetAnimInstance();

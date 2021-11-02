@@ -9,6 +9,9 @@
 const FName AEnemyAIController::HomePosKey(TEXT("HomePos"));
 const FName AEnemyAIController::PatrolPosKey(TEXT("PatrolPos"));
 const FName AEnemyAIController::TargetKey(TEXT("Target"));
+const FName AEnemyAIController::RandomNumKey(TEXT("RandomNum"));
+const FName AEnemyAIController::CanAttackKey(TEXT("CanAttack"));
+const FName AEnemyAIController::DamagedIngKey(TEXT("DamagedIng"));
 
 AEnemyAIController::AEnemyAIController()
 {
@@ -34,5 +37,7 @@ void AEnemyAIController::OnPossess(APawn* InPawn)
 		RunBehaviorTree(BTEnemy);
 
 		Blackboard->SetValueAsVector(HomePosKey, InPawn->GetActorLocation());
+		Blackboard->SetValueAsInt(RandomNumKey, 2);
+		Blackboard->SetValueAsBool(CanAttackKey, true);
 	}
 }

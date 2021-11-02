@@ -23,6 +23,7 @@ bool UBTDecorator_IsInAttackLongRange::CalculateRawConditionValue(UBehaviorTreeC
 	AMain* Target = Cast<AMain>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(AEnemyAIController::TargetKey));
 	if (nullptr == Target) return false;
 
-	bResult = (Target->GetDistanceTo(ControllingPawn) >= Dist);	// Target과의 거리가 지정한만큼 되면 true 반환 하여 공격
+	float DistToTarget = Target->GetDistanceTo(ControllingPawn);
+	bResult = (Dist < DistToTarget && DistToTarget < 2000.f);	// Target과의 거리가 지정한만큼 되면 true 반환 하여 공격
 	return bResult;
 }

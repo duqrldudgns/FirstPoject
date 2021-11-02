@@ -21,6 +21,8 @@
 #include "EnemyAIController.h"
 #include "Components/DecalComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Components/ChildActorComponent.h"
+#include "Math/UnrealMathUtility.h"
 
 
 // Sets default values
@@ -39,6 +41,10 @@ AEnemy::AEnemy()
 
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
 	CombatCollision->SetupAttachment(GetMesh(), FName("WeaponSocket"));	// 해당 이름을 가진 소켓에 콜리젼박스를 붙임
+
+	// Create SwordAttached
+	SwordAttached = CreateDefaultSubobject<UChildActorComponent>(TEXT("SwordAttached"));
+	SwordAttached->SetupAttachment(GetMesh(), "WeaponSocket");		// Attach the camera to the end of the boom and let the boom adjust to match 
 
 	SelectDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectDecal"));
 	SelectDecal->SetupAttachment(GetRootComponent());
@@ -62,25 +68,28 @@ AEnemy::AEnemy()
 	bHasValidTarget = false;
 	bDamagedIng = false;
 	bHitOnce = false;
+	bCanAttack = true;
 
 	Health = 75.f;
 	MaxHealth = 100.f;
 	Damage = 10.f;
 
-	AttackDelay = 2.f;
 	DeathDelay = 5.0f;
+	AttDelay = 5.0f;
 
 	EnemyMovementStatus = EEnemyMovementStatus::EMS_Idle;
-	GetCharacterMovement()->MaxWalkSpeed = 300.f;
+	GetCharacterMovement()->MaxWalkSpeed = 200.f;
 
 	DamageTypeClass = UDamageType::StaticClass();
 
 	AIControllerClass = AEnemyAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;	//레벨에 배치하거나 새로 생성되는 Enemy는 EnemyAIController의 지배를 받게됨
 
-	DetectRadius = 600.f;
+	DetectRadius = 1000.f;
 
 	DisplayHealthBarTime = 5.f;
+
+	DamType = 0;
 }
 
 // Called when the game starts or when spawned
@@ -252,8 +261,14 @@ void AEnemy::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 			if (DamageTypeClass)
 			{
 				//UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
-				UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, AIController, this, DamageTypeClass); // 포인트 데미지
-
+				if (DamType == 1)
+					UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, AIController, this, Main->Upper); // 포인트 데미지
+				else if (DamType == 2)
+					UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, AIController, this, Main->KnockDown); // 포인트 데미지
+				else if (DamType == 3)
+					UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, AIController, this, Main->Rush); // 포인트 데미지
+				else
+					UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, AIController, this, DamageTypeClass); // 포인트 데미지
 			}
 		}
 	}
@@ -294,12 +309,29 @@ void AEnemy::MoveToTarget(class AMain* Target)	//@@@@@FIX ERROR : 네비게이션박스
 		}
 	}
 }
-
-void AEnemy::ActivateCollision()
+void AEnemy::UpperActivate()
 {
+	DamType = 1;
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly); // QueryOnly : 물리학 계산 하지 않음
 }
 
+void AEnemy::KnockDownActivate()
+{
+	DamType = 2;
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly); // QueryOnly : 물리학 계산 하지 않음
+}
+
+void AEnemy::RushActivate()
+{
+	DamType = 3;
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly); // QueryOnly : 물리학 계산 하지 않음
+}
+
+void AEnemy::ActivateCollision()
+{
+	DamType = 0;
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly); // QueryOnly : 물리학 계산 하지 않음
+}
 
 void AEnemy::DeActivateCollision()
 {
@@ -311,17 +343,25 @@ void AEnemy::Attack()
 	if (!bAttacking && Alive())// && bHasValidTarget)
 	{
 		bAttacking = true;
+		bCanAttack = false;
+		bDamagedIng = false;
+
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
+
+		AttackDelay();
 
 		if (AIController)
 		{
 			AIController->StopMovement();
 		}
 
+		int32 Num = FMath::RandRange(0, 2);
+		TArray<FName> Section = {"Attack01", "Attack03", "Attack04"};
+
 		if (AnimInstance && CombatMontage)
 		{
 			AnimInstance->Montage_Play(CombatMontage, 1.0f);
-			AnimInstance->Montage_JumpToSection(FName("Attack"), CombatMontage);
+			AnimInstance->Montage_JumpToSection(Section[Num], CombatMontage);
 		}
 	}
 }
@@ -333,7 +373,7 @@ void AEnemy::AttackEnd()
 	bAttacking = false;
 
 	OnAttackEnd.Broadcast();	// 델리게이트를 호출
-
+	
 	//GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([&]()
 	//{
 	//	if (bOverlappingCombatSphere) {
@@ -355,7 +395,7 @@ void AEnemy::PlaySwingSound()
 {
 	if (SwingSound)
 	{
-		UGameplayStatics::PlaySound2D(this, SwingSound);
+		UGameplayStatics::PlaySoundAtLocation(this, SwingSound, GetActorLocation());
 	}
 }
 
@@ -460,14 +500,19 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 				{
 					bDamagedIng = true;
 					bAttacking = false;
+					DeActivateCollision();
 
 					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 					AnimInstance->Montage_JumpToSection(FName("KnockDown"), DamagedMontage);
+
+					FVector LaunchVelocity = GetActorUpVector() * -1500.f;
+					LaunchCharacter(LaunchVelocity, false, false);
 				}
 				else if (DamageEvent.DamageTypeClass == Main->Upper)
 				{
 					bDamagedIng = true;
 					bAttacking = false;
+					DeActivateCollision();
 
 					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 					AnimInstance->Montage_JumpToSection(FName("Upper"), DamagedMontage);
@@ -480,6 +525,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 				{
 					bDamagedIng = true;
 					bAttacking = false;
+					DeActivateCollision();
 
 					AnimInstance->Montage_Play(DamagedMontage, 1.0f);
 					AnimInstance->Montage_JumpToSection(FName("Rush"), DamagedMontage);
@@ -517,6 +563,7 @@ void AEnemy::DamagedDownEnd()
 
 void AEnemy::DamagedEnd()
 {
+	UE_LOG(LogTemp, Warning, TEXT("DamagedEnd Test"));
 	bDamagedIng = false;
 	ResetCasting();
 }
@@ -578,6 +625,15 @@ void AEnemy::ResetCasting()	//무언가 동작 중에 다른 동작을 요구할 때
 	{
 		Montage->StopAllMontages(0.f);
 	}
+}
+
+void AEnemy::AttackDelay()
+{
+	FTimerHandle WaitHandle;
+	GetWorld()->GetTimerManager().SetTimer(WaitHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			bCanAttack = true;
+		}), AttDelay, false);
 }
 
 void AEnemy::ResetHitOnce()

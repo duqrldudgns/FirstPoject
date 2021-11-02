@@ -26,6 +26,9 @@ public:
 	static const FName RandomNumKey;
 	static const FName DistanceKey;
 	static const FName TargetLocKey;
+	static const FName CanAttackKey;
+	static const FName DamagedIngKey;
+
 
 private:
 
