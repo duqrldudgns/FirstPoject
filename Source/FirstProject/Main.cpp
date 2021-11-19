@@ -27,6 +27,9 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Components/ChildActorComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Bow.h"
+#include "DamageNumbers.h"
+#include "PositionDecal.h"
 
 // Sets default values
 AMain::AMain()
@@ -40,6 +43,22 @@ AMain::AMain()
 	SwordAttached = CreateDefaultSubobject<UChildActorComponent>(TEXT("SwordAttached"));
 	SwordAttached->SetupAttachment(GetMesh(), "Sword_Back");		// Attach the camera to the end of the boom and let the boom adjust to match 
 
+	BowAttached_ = CreateDefaultSubobject<UChildActorComponent>(TEXT("BowAttached_"));
+	BowAttached_->SetupAttachment(GetMesh(), "Bow_Back");
+
+	Quiver_ = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Quiver_"));
+	Quiver_->SetupAttachment(GetMesh(), "QuiverSocket");
+	
+	QuiverArrows_ = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Quiver_Arrows_"));
+	QuiverArrows_->SetupAttachment(Quiver_);
+	QuiverArrows_->SetWorldRotation(FRotator(30.f, 0.f, 0.f));
+	QuiverArrows_->InstancingRandomSeed = 21757;
+	QuiverArrows_->SetEnableGravity(false);
+	QuiverArrows_->SetGenerateOverlapEvents(false);
+	QuiverArrows_->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+	QuiverArrows_->SetCollisionProfileName("NoCollision");
+	AddInstanceQuiverArrows();
+
 	// Create Character Select Decal
 	SelectDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectDecal"));
 	SelectDecal->SetupAttachment(GetRootComponent());
@@ -50,7 +69,7 @@ AMain::AMain()
 	{
 		SelectDecal->SetDecalMaterial(Decal.Object);
 	}
-
+	
 	// Create Camera Boom (pulls towards the player if there's a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(GetRootComponent());
@@ -65,6 +84,19 @@ AMain::AMain()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);		// Attach the camera to the end of the boom and let the boom adjust to match 
 	FollowCamera->bUsePawnControlRotation = false;		// 이미 springarm이 true이기 때문에 컨트롤러에 의존하지않음
+
+	FollowCameraZoomIn_ = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCameraZoomIn_"));
+	FollowCameraZoomIn_->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCameraZoomIn_->SetRelativeLocation(FVector(300.f, 80.f, 55.f));
+	FollowCameraZoomIn_->bUsePawnControlRotation = false;
+	
+	PShoot_ = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("P_Shoot_"));
+	PShoot_->SetupAttachment(FollowCamera);
+	PShoot_->SetRelativeLocation(FVector(100.f, 0.f, 0.f));
+	PShoot_->SetAutoActivate(false);
+
+	ArrowsVisualize_ = CreateDefaultSubobject<USceneComponent>(TEXT("Arrows_Visualize_"));
+	ArrowsVisualize_->SetupAttachment(GetRootComponent());
 
 	// Set our turn rates for input , 1초동안 키를 누르고 있으면 회전하는 양
 	BaseTurnRate = 65.f;
@@ -85,8 +117,8 @@ AMain::AMain()
 	JumpMaxHoldTime = 0.1f;
 	JumpMaxCount = 2;
 
-	MaxHealth = 100.f;
-	Health = 65.f;
+	MaxHealth = 250.f;
+	Health = 250.f;
 	MaxStamina = 100.f;
 	Stamina = 50.f;
 	Coins = 0;
@@ -96,7 +128,7 @@ AMain::AMain()
 	SprintingSpeed = 1000.f;
 
 	bShiftKeyDown = false;
-	bInteractionKeyDown = false;
+	bSwordEquipKeyDown = false;
 	bLMBDown = false;
 	bRMBDown = false;
 	bAttacking = false;
@@ -115,6 +147,7 @@ AMain::AMain()
 	bArmedBridgeIng = false;
 	bTestKeyDown = false;
 	bDodgeIng = false;
+	bGotHit = false;
 
 	//Initialize Enums
 	MovementStatus = EMovementStatus::EMS_Normal;
@@ -136,14 +169,51 @@ AMain::AMain()
 	FootOffsetL = 0.f;
 	FootOffsetR = 0.f;
 
-	//DefaultFieldOfView = 0.f;
-	//DefaultArmLength = 0.f;
-	//DefaultMaxWalkSpeed = 0.f;
-	//TraceRadius = 50.f;
-	//DistanceToAimAssistTarget = 0.f;
-	//MaxAimAssistDistance = 2000.f;
+	FollowCameraInitLoc = FollowCamera->GetRelativeLocation();
 
-	bGotHit = false;
+	DefaultFieldOfView_ = FollowCamera->FieldOfView;
+	DefaultArmLength_ = CameraBoom->TargetArmLength;
+	////float DefaultMaxWalkSpeed_;
+	TraceRadius_ = 50.f;
+	//AActor* AimAssistTarget_;	//BPFocusPoint
+	//float DistanceToAimAssistTarget_;
+	MaxAimAssistDistance_ = 2000.f;
+	MaxTraceRadius_ = 100.f;
+	//FRotator StartRotation_;
+	//bool ActiveAimAssist_;
+	AimAssistPlayRate_ = 1.f;
+	//// DefaultBow_;	//actor
+	////float WalkSpeed_;
+	//// EquippedBow_;	//actor
+	//class ABow* BowReference_;	//BPBow
+	////UUserWidget* PlayerUI_;	// init x  WBPlayerUIPostProcess 
+	//int32 ArrowMeshesInquiver_;
+	////StartTransform_.SetScale3D(FVector(1.f));
+	//bool BowEquipped_;
+	//bool WantsToAim_;
+	Arrows_ = 99999;	
+	//bool Aiming_;
+	//int32 SubtractNumber_;
+	//bool ToggleAim_;
+	//bool Drawing_;
+	//bool WantsToDraw_;
+	CanDraw_ = true;	
+	//bool GrabArrowFromQuiver_;
+	//bool HideQuiver_;
+	//TArray<FTransform> ArrowTransform_;
+	//bool SwappingWeapon_;
+	MaxArrows_ = 10;	
+	//float Draw_;
+
+	FirstSkillCoolDownUI = 1.f;
+	SecondSkillCoolDownUI = 1.f;
+	ThirdSkillCoolDownUI = 1.f;
+	FourthSkillCoolDownUI = 1.f;
+
+	FirstSkillCoolDownTime = 3.f;
+	SecondSkillCoolDownTime = 5.f;
+	ThirdSkillCoolDownTime = 15.f;
+	FourthSkillCoolDownTime = 10.f;
 }
 
 // Called when the game starts or when spawned
@@ -171,6 +241,8 @@ void AMain::BeginPlay()
 	{
 		LoadGameNoSwitch();
 	}
+
+	BowInitSet();
 }
 
 // Called every frame
@@ -294,6 +366,20 @@ void AMain::Tick(float DeltaTime)
 	AimPitch = InterpRotation.Pitch;
 	AimYaw = InterpRotation.Yaw;
 
+	CameraChangeInterp();
+
+	LockOnTargetCameraInterp();
+
+	// Blackhole Skill
+	ShowBlackholeRange();
+
+	// CloneAttack Skill
+	CloneAttackCast();
+
+	FirstSkillCoolDownReturn();
+	SecondSkillCoolDownReturn();
+	ThirdSkillCoolDownReturn();
+	FourthSkillCoolDownReturn();
 }
 
 // Called to bind functionality to input
@@ -313,8 +399,8 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	//PlayerInputComponent->BindAction("Dodge", IE_Pressed, this, &AMain::DodgeKeyDown);
 	//PlayerInputComponent->BindAction("Dodge", IE_Released, this, &AMain::DodgeKeyUp);
 
-	PlayerInputComponent->BindAction("Interaction", IE_Pressed, this, &AMain::InteractionKeyDown);
-	PlayerInputComponent->BindAction("Interaction", IE_Released, this, &AMain::InteractionKeyUp);
+	PlayerInputComponent->BindAction("SwordEquip", IE_Pressed, this, &AMain::SwordEquipKeyDown);
+	PlayerInputComponent->BindAction("SwordEquip", IE_Released, this, &AMain::SwordEquipKeyUp);
 
 	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
 	PlayerInputComponent->BindAction("LMB", IE_Released, this, &AMain::LMBUp);
@@ -337,10 +423,21 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("FourthSkill", IE_Pressed, this, &AMain::FourthSkillKeyDown);
 	PlayerInputComponent->BindAction("FourthSkill", IE_Released, this, &AMain::FourthSkillKeyUp);
 
+	PlayerInputComponent->BindAction("Combo1", IE_Pressed, this, &AMain::Combo1KeyDown);
+	PlayerInputComponent->BindAction("Combo1", IE_Released, this, &AMain::Combo1KeyUp);
+
+	PlayerInputComponent->BindAction("Combo2", IE_Pressed, this, &AMain::Combo2KeyDown);
+	PlayerInputComponent->BindAction("Combo2", IE_Released, this, &AMain::Combo2KeyUp);
+
+	PlayerInputComponent->BindAction("BowEquip", IE_Pressed, this, &AMain::BowEquipKeyDown);
+	PlayerInputComponent->BindAction("BowEquip", IE_Released, this, &AMain::BowEquipKeyUp);
+
 	PlayerInputComponent->BindAction("Test", IE_Pressed, this, &AMain::TestKeyDown);
 	PlayerInputComponent->BindAction("Test", IE_Released, this, &AMain::TestKeyUp);
 
-	// MEMO : Tick 처럼 계속 동작 중 .. 왜지?? , 아래 함수들도 마찬가지 일 것 같음
+	PlayerInputComponent->BindAction("LockOnTarget", IE_Pressed, this, &AMain::LockOnTargetKeyDown);
+	PlayerInputComponent->BindAction("LockOnTarget", IE_Released, this, &AMain::LockOnTargetKeyUp);
+
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMain::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMain::MoveRight);
 
@@ -510,6 +607,8 @@ void AMain::DeathEnd()
 
 void AMain::SetMovementStatus(EMovementStatus Status)
 {
+	if (Aiming_) return;
+
 	MovementStatus = Status;
 	if (MovementStatus == EMovementStatus::EMS_Sprinting)
 	{
@@ -541,9 +640,14 @@ void AMain::LMBDown()
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
+
 	if (EquippedWeapon && CanAction())
 	{
-		if (GetCharacterMovement()->IsFalling()) {	// 공중 공격
+		if (bBlackholeKeyDown)
+		{
+			BlackholeSKillCast();
+		}
+		else if (GetCharacterMovement()->IsFalling()) {	// 공중 공격
 			AirAttack();
 		}
 		else {	// 지상 공격
@@ -556,21 +660,32 @@ void AMain::LMBDown()
 	{
 		bComboAttackInput = true;
 	}
+
+	BowDrawPressed();
+
 }
 
 void AMain::LMBUp()
 {
 	bLMBDown = false;
+
+	BowDrawReleased();
 }
 
 void AMain::RMBDown()
 {
 	bRMBDown = true;
+
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+	BowAimInputPressed();
 }
 
 void AMain::RMBUp()
 {
 	bRMBDown = false;
+
+	BowAimInputReleased();
 }
 
 void AMain::TestKeyDown()
@@ -598,9 +713,11 @@ void AMain::EscUp()
 	bEscDown = false;
 }
 
-void AMain::InteractionKeyDown()
+void AMain::SwordEquipKeyDown()
 {
-	bInteractionKeyDown = true;
+	bSwordEquipKeyDown = true;
+
+	if (BowEquipped_) return;
 
 	AWeapon* Weapon = Cast<AWeapon>(SwordAttached->GetChildActor());
 	if (Weapon && !GetMovementComponent()->IsFalling() && GetArmedStatus() == EArmedStatus::EAS_Normal)
@@ -616,9 +733,9 @@ void AMain::InteractionKeyDown()
 
 }
 
-void AMain::InteractionKeyUp()
+void AMain::SwordEquipKeyUp()
 {
-	bInteractionKeyDown = false;
+	bSwordEquipKeyDown = false;
 }
 
 void AMain::ShowPickupLocations()
@@ -756,6 +873,8 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 {
 	float HitDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
+	if (bSuperArmor) return HitDamage;
+
 	FRotator LookAtRotation = GetLookAtRotationYaw(DamageCauser->GetActorLocation());
 
 	FRotator HitRotation = UKismetMathLibrary::NormalizedDeltaRotator(LookAtRotation, GetActorRotation());
@@ -823,7 +942,7 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 
 				int32 Num = FMath::RandRange(0, 1);
 				FName MontageList[] = { "Damaged01", "Damaged02" };
-				if (!Montage->GetCurrentActiveMontage())
+				if (!Montage->GetCurrentActiveMontage() && !Aiming_)
 				{
 					ResetCasting();
 					PlayMontage(DamagedMontage, MontageList[Num]);
@@ -861,7 +980,8 @@ void AMain::ResetCasting()	//무언가 동작 중에 다른 동작을 요구할 때
 			Weapon->DeActivateCollision();
 		}
 	}
-	// bow의 aiming 같은거 처리해야함
+	if (Drawing_) CanDraw_ = true;
+	if (Aiming_) ForceAimStop();
 
 	UAnimInstance* Montage = GetMesh()->GetAnimInstance();
 	if (Montage->GetCurrentActiveMontage() != DodgeMontage)
@@ -1078,9 +1198,17 @@ void AMain::FirstSkillKeyDown()
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
-	if (EquippedWeapon && CanAction())
+	if (EquippedWeapon && CanAction() && !FirstSkillCoolDown)
 	{
 		FireBallSkillCast();
+	}
+
+	if (BowEquipped_ && !BowReference_->RainOfArrowsCoolDown)
+	{
+		if (BowReference_->RainOfArrowsActive)
+			BowReference_->SetRainOfArrowsActive(false);
+		else
+			BowReference_->SetRainOfArrowsActive(true);
 	}
 }
 
@@ -1095,9 +1223,17 @@ void AMain::SecondSkillKeyDown()
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
-	if (EquippedWeapon && CanAction())
+	if (EquippedWeapon && CanAction() && !SecondSkillCoolDown)
 	{
 		WaveSkillCast();
+	}
+
+	if (BowEquipped_ && !BowReference_->IceArrowCoolDown)
+	{
+		if (BowReference_->IceArrowActive)
+			BowReference_->SetIceArrowActive(false);
+		else
+			BowReference_->SetIceArrowActive(true);
 	}
 }
 
@@ -1112,9 +1248,17 @@ void AMain::ThirdSkillKeyDown()
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
-	if (EquippedWeapon && CanAction())
+	if (EquippedWeapon && CanAction() && !ThirdSkillCoolDown)
 	{
-		DashAttack();
+		Blackhole();
+	}
+
+	if (BowEquipped_ && !BowReference_->DetectionArrowCoolDown)
+	{
+		if (BowReference_->DetectionArrowActive)
+			BowReference_->SetDetectionArrowActive(false);
+		else
+			BowReference_->SetDetectionArrowActive(true);
 	}
 }
 
@@ -1129,9 +1273,9 @@ void AMain::FourthSkillKeyDown()
 
 	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
 
-	if (EquippedWeapon && CanAction())
+	if (EquippedWeapon && CanAction() && !FourthSkillCoolDown)
 	{
-		UpperAttack();
+		CloneAttack();
 	}
 }
 
@@ -1153,8 +1297,10 @@ void AMain::PlayMontage(UAnimMontage* Montage, FName Section)
 void AMain::FireBallSkillCast()
 {
 	bSkillCasting = true;
-
+	
 	PlayMontage(SkillMontage, "Skill01");
+
+	StartFirstSkillCooldown();
 }
 
 void AMain::WaveSkillCast()
@@ -1226,7 +1372,7 @@ void AMain::WaveSkillActivation()
 		ObjectTypes,
 		false,
 		IgnoreActors, // 무시할 것이 없다고해도 null을 넣을 수 없다.
-		EDrawDebugTrace::ForDuration,	// 디버그
+		EDrawDebugTrace::None,	// 디버그
 		HitResults,
 		true
 		// 여기 밑에 3개는 기본 값으로 제공됨. 바꾸려면 적으면 됨.
@@ -1255,9 +1401,11 @@ void AMain::WaveSkillActivation()
 				if (Basic)
 				{
 					FName SectionName = GetMesh()->GetAnimInstance()->Montage_GetCurrentSection();
-					// TakeDamage 함수와 연동되어 데미지를 입힘
-					UGameplayStatics::ApplyDamage(Enemy, WaveSkillDamage, MainInstigator, this, Basic);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
-					Enemy->DisplayHealthBar();
+
+					UGameplayStatics::ApplyPointDamage(Enemy, WaveSkillDamage, GetActorLocation(), HitResult, MainInstigator, this, Basic);
+					Enemy->GetCharacterMovement()->MaxWalkSpeed = 100.f;
+
+					//Enemy->DisplayHealthBar();
 					//UE_LOG(LogTemp, Warning, TEXT("%s"), HitResult);
 				}
 			}
@@ -1287,6 +1435,8 @@ void AMain::SkillKeyDownCheck()
 	if (!bSecondSkillKeyDown)
 	{
 		PlayMontage(SkillMontage, "Skill02End");
+
+		StartSecondSkillCooldown();
 	}
 }
 
@@ -1374,4 +1524,782 @@ void AMain::DodgeEnd()
 	bDodgeIng = false;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);	// Enemy에 대한 충돌 설정
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Block);	// Enemy의 무기
+}
+
+void AMain::AddInstanceQuiverArrows()
+{
+	FTransform Transform;
+	Transform.SetRotation(FQuat(FRotator(-39.f, 167.f, 52.f)));
+	Transform.SetScale3D(FVector(0.95f, 1.8f, 1.8f));
+	for(int i=0; i<8; i++) QuiverArrows_->AddInstance(Transform);
+}
+
+void AMain::BowInitSet()
+{
+	BowReference_ = Cast<ABow>(BowAttached_->GetChildActor());
+	if (BowReference_ == nullptr) return;
+
+	BowReference_->BeginPlayBow(this);
+		
+	ArrowMeshesInquiver_ = QuiverArrows_->GetInstanceCount() - 1;
+	SaveArrowTransforms();
+
+	//StartTransform_ = GetActorTransform();
+}
+
+void AMain::SaveArrowTransforms()
+{
+	for (int i = 0; i <= ArrowMeshesInquiver_; i++)
+	{
+		FTransform OutInstanceTransform;
+		QuiverArrows_->GetInstanceTransform(i, OutInstanceTransform);
+		ArrowTransform_.Emplace(OutInstanceTransform);
+	}
+
+}
+
+void AMain::BowEquipKeyDown()
+{
+	bBowEquipKeyDown = true;
+
+	if (EquippedWeapon) return;
+
+	if (!BowEquipped_)
+	{
+		bArmedBridgeIng = true;
+		PlayMontage(BowEquipMontage, "BowEquip");
+	}
+	else
+	{
+		bArmedBridgeIng = true;
+		PlayMontage(BowEquipMontage, "BowUnEquip");
+	}
+}
+
+void AMain::BowEquipKeyUp()
+{
+	bBowEquipKeyDown = false;
+}
+
+void AMain::EquipBow()
+{
+	BowAttached_->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true), "Bow1_Socket");
+	if (BowReference_->BowEquipSound) UGameplayStatics::PlaySound2D(this, BowReference_->BowEquipSound);
+
+	BowEquipped_ = true;
+	SetArmedStatus(EArmedStatus::EAS_Bow);
+
+	BowReference_->EquippedChanged(false);
+
+	if (Arrows_ > 0) RemoveArrowMeshQuiver(Arrows_ - 1);
+
+	if (WantsToAim_) CheckWantsToAim();
+
+}
+
+void AMain::UnEquipBow()
+{
+	//Check 원래는 BowEquipKeyDown()에 있어야 할 애들, 이상하면 보내보자 clear
+	BowReference_->HideArrow();
+	BowReference_->DontHoldCable();
+
+	if (Aiming_) ForceAimStop();
+
+	BowEquipped_ = false;
+	SetArmedStatus(EArmedStatus::EAS_Normal);
+	//여기까지
+
+	BowAttached_->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true), "Bow_Back");
+	if (BowReference_->BowUnEquipSound) UGameplayStatics::PlaySound2D(this, BowReference_->BowUnEquipSound);
+
+	BowReference_->EquippedChanged(true);
+
+	if (Arrows_ > 0) SubtractNumber_ = 1;
+	AddArrowMeshQuiver(Arrows_);
+}
+
+void AMain::RemoveArrowMeshQuiver(int32 NewArrows)
+{
+	QuiverArrows_->RemoveInstance(NewArrows);
+}
+
+void AMain::AddArrowMeshQuiver(int32 NewArrows)
+{
+	if (NewArrows - SubtractNumber_ < ArrowMeshesInquiver_ + 1)
+	{
+		int32 idx = QuiverArrows_->GetInstanceCount();
+		QuiverArrows_->AddInstance(ArrowTransform_[idx]);
+	}
+}
+
+
+void AMain::SubtractArrows(int32 ArrowsToSubtract)	// 보통 ArrowsToSubtract = 1
+{
+	if (Arrows_ <= 0) return;
+
+	Arrows_ -= ArrowsToSubtract;
+
+	if (Arrows_ == 0) BowReference_->HideArrow();
+
+	BowReference_->UpdateAmmoUI(Arrows_);
+}
+
+void AMain::AddArrows(int32 ArrowsToAdd)	// 보통 ArrowsToAdd = 1
+{
+	int32 CurrentAmmo = Arrows_;
+
+	if (Arrows_ >= MaxArrows_) return;
+
+	Arrows_ += ArrowsToAdd;
+
+	if (Aiming_ && (CurrentAmmo == 0))
+	{
+		SubtractNumber_ = 2;
+	}
+	else
+	{
+		for (int i = 0; i <= ArrowsToAdd - 1; i++)
+		{
+			AddArrowMeshQuiver(CurrentAmmo + 1);
+			if (QuiverArrows_->GetInstanceCount() == ArrowMeshesInquiver_) SubtractNumber_ = 1;
+		}
+	}
+
+	BowReference_->UpdateAmmoUI(Arrows_);
+
+	if (CurrentAmmo == 0)
+		if (Aiming_ && BowEquipped_) 
+			BowReference_->ShowArrow();
+}
+
+void AMain::BowAimInputPressed()
+{
+	WantsToAim_ = true;
+
+	ForceAimStart();
+}
+
+void AMain::BowAimInputReleased()
+{
+	WantsToAim_ = false;
+
+	ForceAimStop();
+}
+
+void AMain::CheckWantsToAim()
+{
+	if (WantsToAim_) ForceAimStart();
+}
+
+void AMain::ForceAimStart()
+{
+	if (!BowEquipped_ || bGotHit) return;
+
+	SetMovementStatus(EMovementStatus::EMS_Normal);
+
+	BowReference_->AimStart();
+
+	StartAim();
+
+	if (Arrows_ > 0) BowReference_->ShowArrow();
+
+	CheckWantsToDraw();
+}
+
+void AMain::ForceAimStop()
+{
+	if (!BowEquipped_) return;
+
+	BowReference_->AimStop();
+
+	StopAim();
+}
+
+void AMain::StartAim()
+{
+	Aiming_ = true;
+	
+	ChangeFollowCameraZoomIn();
+}
+
+void AMain::StopAim()
+{
+	Aiming_ = false;
+	
+	ChangeFollowCamera();
+}
+
+void AMain::WalkingWayChange()
+{
+	if (bWalking8Way) bWalking8Way = false;
+	else bWalking8Way = true;
+}
+
+void AMain::ChangeFollowCameraZoomOut()
+{
+	bCameraZoomOut = true;
+	CameraBoom->bEnableCameraLag = false;
+}
+
+void AMain::ChangeFollowCameraZoomIn()
+{
+	bCameraZoomIn = true;
+	CameraBoom->bEnableCameraLag = false;
+}
+
+void AMain::ChangeFollowCamera()
+{
+	bCameraZoomOut = false;
+	bCameraZoomIn = false;
+	CameraBoom->bEnableCameraLag = true;
+}
+
+void AMain::CameraChangeInterp()
+{
+	if (bCameraZoomIn) 
+	{
+		FVector NewLocation = UKismetMathLibrary::VInterpTo(FollowCamera->GetRelativeLocation(), FollowCameraZoomIn_->GetRelativeLocation(), GetWorld()->GetDeltaSeconds(), 5.f);
+		FollowCamera->SetRelativeLocation(NewLocation);
+	}
+	else if (bCameraZoomOut)
+	{
+		FVector NewLocation = UKismetMathLibrary::VInterpTo(FollowCamera->GetRelativeLocation(), FollowCameraInitLoc + FVector(-500.f, 0.f, 200.f), GetWorld()->GetDeltaSeconds(), 5.f);
+		FollowCamera->SetRelativeLocation(NewLocation);
+	}
+	else
+	{
+		FVector NewLocation = UKismetMathLibrary::VInterpTo(FollowCamera->GetRelativeLocation(), FollowCameraInitLoc, GetWorld()->GetDeltaSeconds(), 5.f);
+		FollowCamera->SetRelativeLocation(NewLocation);
+	}
+}
+
+void AMain::BowDrawPressed()
+{
+	WantsToDraw_ = true;
+
+	if (CanDraw_ && BowEquipped_ && Aiming_) CheckDrawStart();
+}
+
+void AMain::BowDrawReleased()
+{
+	WantsToDraw_ = false;
+
+	if (!(CanDraw_ && BowEquipped_ && Aiming_ && Arrows_ > 0)) return;
+
+	BowReference_->DrawShoot();
+	Drawing_ = false;
+	PlayFireMontage();
+}
+
+void AMain::CheckWantsToDraw()
+{
+	if (WantsToDraw_ && CanDraw_ && BowEquipped_) CheckDrawStart();
+}
+
+void AMain::CheckDrawStart()
+{
+	if (Arrows_ > 0) BowReference_->DrawStart();
+	Drawing_ = true;
+}
+
+void AMain::PlayFireMontage()
+{
+	BowReference_->HideArrow();
+	BowReference_->DontHoldCable();
+
+	if (ArrowFireMontage) PlayMontage(ArrowFireMontage, "Default");
+
+	// Temporarily don't allow draw
+	CanDraw_ = false;
+}
+
+void AMain::FireArrowEnd()
+{
+	CanDraw_ = true;
+	
+	if (WantsToDraw_) CheckWantsToDraw();
+
+	if (Arrows_ != 0) BowReference_->ShowArrow();
+	BowReference_->HoldCable();
+}
+
+void AMain::LockOnTargetKeyDown()
+{
+	bLockOnTargetKeyDown = true;
+
+	LockOnTarget();
+}
+
+void AMain::LockOnTargetKeyUp()
+{
+	bLockOnTargetKeyDown = false;
+}
+
+void AMain::LockOnTarget()
+{
+	if (bWalking8Way)
+	{
+		ChangeFollowCamera();
+
+		LockOnEnemy = nullptr;
+		bWalking8Way = false;
+		bUseControllerRotationYaw = false;
+	}
+	else {
+
+		FVector ActorLoc = GetActorLocation();
+		FVector CamForward = FollowCamera->GetForwardVector();
+		FVector StartLoc = ActorLoc; 
+		FVector EndLoc = ActorLoc + (CamForward * 2500.0f); 
+
+		float Radius = 300.f;
+
+		TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+		TEnumAsByte<EObjectTypeQuery> Target = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel2);
+		ObjectTypes.Add(Target);	//Enemy
+
+		TArray<AActor*> IgnoreActors;
+		FHitResult HitResult;
+
+		bool Result = UKismetSystemLibrary::SphereTraceSingleForObjects(
+			GetWorld(),
+			StartLoc,
+			EndLoc,
+			Radius,
+			ObjectTypes,
+			false,
+			IgnoreActors,
+			EDrawDebugTrace::None,	
+			HitResult,
+			true
+			// 여기 밑에 3개는 기본 값으로 제공됨. 바꾸려면 적으면 됨.
+			//, FLinearColor::Red
+			//, FLinearColor::Green
+			//, 5.0f
+		);
+
+		if (Result)
+		{
+			LockOnEnemy = Cast<AEnemy>(HitResult.GetActor());
+			if (LockOnEnemy)
+			{
+				ChangeFollowCameraZoomIn();
+
+				bWalking8Way = true;
+
+				// Lock Character Move Forward
+				bUseControllerRotationYaw = true;
+			}
+		}
+	}
+}
+
+void AMain::LockOnTargetCameraInterp()
+{
+	if (!bWalking8Way && !LockOnEnemy) return;
+
+	FRotator NewRotation;
+	NewRotation.Roll = GetController()->GetControlRotation().Roll;
+
+	FVector Target = LockOnEnemy->GetActorLocation();
+	Target.Z -= 100.f;
+	FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Target);
+
+	FRotator InterpRotation = FMath::RInterpTo(GetController()->GetControlRotation(), LookAtRotation, GetWorld()->GetDeltaSeconds(), 5.f);
+	
+	NewRotation.Pitch = InterpRotation.Pitch;
+	NewRotation.Yaw = InterpRotation.Yaw;
+	
+	GetController()->SetControlRotation(NewRotation);
+}
+
+void AMain::SpawnDamageNumbers(FVector InLocation, bool Headshot, float DamageNumbers)
+{
+	if (DamageNumberAsset)
+	{
+		FTransform SpawnTransform;
+		SpawnTransform.SetLocation(InLocation);
+		ADamageNumbers* DamageNum = GetWorld()->SpawnActorDeferred<ADamageNumbers>(DamageNumberAsset, SpawnTransform);
+		
+		FString Str = FString::FromInt(FGenericPlatformMath::TruncToInt(DamageNumbers));
+		DamageNum->DamageNumbers = FText::FromString(Str);
+		DamageNum->Headshot = Headshot;
+
+		DamageNum->FinishSpawning(SpawnTransform);
+	}
+}
+
+void AMain::Combo1KeyDown()
+{
+	bCombo1KeyDown = true;
+
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+	if (EquippedWeapon && CanAction())
+	{
+		DashAttack();
+	}
+}
+
+void AMain::Combo1KeyUp()
+{
+	bCombo1KeyDown = false;
+}
+
+void AMain::Combo2KeyDown()
+{
+	bCombo2KeyDown = true;
+
+	if (MainPlayerController) if (MainPlayerController->bPauseMenuVisible) return;
+
+	if (EquippedWeapon && CanAction())
+	{
+		UpperAttack();
+	}
+}
+
+void AMain::Combo2KeyUp()
+{
+	bCombo2KeyDown = false;
+}
+
+void AMain::Blackhole()
+{
+	if (bBlackholeKeyDown)
+	{
+		bBlackholeKeyDown = false;
+		BlackholeRangeDecal->Destroy();
+		BlackholeRangeDecal = nullptr;
+
+		ChangeFollowCamera();
+	}
+	else 
+	{
+		bBlackholeKeyDown = true;
+		if (BlackholeRangeDecalAsset)
+		{
+			FTransform Transform;
+			Transform.SetScale3D(FVector(4.f));
+			BlackholeRangeDecal = GetWorld()->SpawnActor<APositionDecal>(BlackholeRangeDecalAsset, Transform);
+
+			ChangeFollowCameraZoomOut();
+		}
+	}
+}
+
+void AMain::BlackholeSKillCast()
+{
+	bBlackholeKeyDown = false;
+	
+	bSkillCasting = true;
+	bBlackholeActive = true;
+	
+	ChangeFollowCamera();
+
+	StartThirdSkillCooldown();
+
+	BlackholeRangeDecal->Destroy();
+	BlackholeRangeDecal = nullptr;
+
+	FVector ActorLoc = MousePoint;
+	ActorLoc.Z += 100.f;
+	SetActorLocation(ActorLoc, false, nullptr, ETeleportType::TeleportPhysics);
+	GetWorld()->GetFirstPlayerController()->PlayerCameraManager->StartCameraShake(CamShake);
+
+	PlayMontage(SkillMontage, "Skill03");
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+	bSuperArmor = true;
+
+	if (BlackholeStartParticle) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BlackholeStartParticle, MousePoint);
+	if (BlackholeStartSound) UGameplayStatics::PlaySound2D(this, BlackholeStartSound);
+}
+
+void AMain::ShowBlackholeRange()
+{
+	if (!bBlackholeKeyDown) return;
+
+	HoldMouseCenter();
+
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes; // 히트 가능한 오브젝트 유형들.
+	TEnumAsByte<EObjectTypeQuery> WorldStatic = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldStatic);
+	ObjectTypes.Add(WorldStatic);	//WorldStatic
+	bool Result = MainPlayerController->GetHitResultUnderCursorForObjects(ObjectTypes, true, MouseHitResult);
+
+	if (!Result) return;
+
+	MousePoint = MouseHitResult.ImpactPoint;
+	float Dist = UKismetMathLibrary::Vector_Distance(GetActorLocation(), MousePoint);
+	if (Dist > 2000.f) 
+		MousePoint = FollowCamera->GetComponentLocation() + (FollowCamera->GetForwardVector() * 2500.f);
+
+	BlackholeRangeDecal->SetActorLocation(MousePoint, false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+void AMain::HoldMouseCenter()
+{
+	if (!MainPlayerController) return;
+
+	int32 X, Y;
+	MainPlayerController->GetViewportSize(X, Y);
+	X /= 2;
+	Y /= 2;
+	MainPlayerController->SetMouseLocation(X, Y);
+}
+
+void AMain::BlackholeCastEnd()
+{
+	bSkillCasting = false;
+	
+	bBlackholeActive = false;
+	bSuperArmor = false;
+
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
+
+	if (BlackholeEndParticle) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BlackholeEndParticle, MousePoint, FRotator(0.f), FVector(3.f));
+	if (BlackholeEndSound) UGameplayStatics::PlaySound2D(this, BlackholeEndSound);
+
+	for (auto HitResult : BlackholeHitResults)
+	{
+		AEnemy* Enemy = Cast<AEnemy>(HitResult.GetActor());
+		if (Enemy)
+		{
+			Enemy->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
+			UGameplayStatics::ApplyPointDamage(Enemy, 99.f, GetActorLocation(), HitResult, MainInstigator, this, Rush);
+		}
+	}
+	BlackholeHitResults.Empty();
+}
+
+void AMain::PlayBlackholeParticle()
+{
+	if (BlackholeParticle) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BlackholeParticle, MousePoint);
+	if (BlackholeSound) UGameplayStatics::PlaySound2D(this, BlackholeSound);
+}
+
+void AMain::CloneAttack()
+{
+	if (bCloneAttackKeyDown) return;
+
+	bCloneAttackKeyDown = true;
+
+	StartFourthSkillCooldown();
+
+	FTimerHandle CloneAttackKeyDownHandle;
+	GetWorld()->GetTimerManager().SetTimer(CloneAttackKeyDownHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			bCloneAttackKeyDown = false;
+			bCloneReset = true;
+		}), 7.f, false);
+}
+
+void AMain::CloneAttackCast()
+{
+	if (bCloneAttackKeyDown && !CloneAttackDelay)
+	{
+		CloneAttackDelay = true;
+		GetWorld()->GetTimerManager().SetTimer(CloneAttackHandle, FTimerDelegate::CreateLambda([&]()
+			{
+				TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+				TEnumAsByte<EObjectTypeQuery> Target = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel2);
+				ObjectTypes.Add(Target);	//Enemy
+
+				TArray<AActor*> IgnoreActors;
+				FHitResult HitResult;
+
+				bool Result = UKismetSystemLibrary::SphereTraceSingleForObjects(
+					GetWorld(),
+					GetActorLocation(),
+					GetActorLocation(),
+					800.f,
+					ObjectTypes,
+					false,
+					IgnoreActors,
+					EDrawDebugTrace::None,	// 디버그
+					HitResult,
+					true
+					// 여기 밑에 3개는 기본 값으로 제공됨. 바꾸려면 적으면 됨.
+					//, FLinearColor::Red
+					//, FLinearColor::Green
+					//, 5.0f
+				);
+
+				if (Result)
+				{
+					// Make Clone
+					FTransform SpawnTransform;
+
+					AMain* Clone = GetWorld()->SpawnActorDeferred<AMain>(CloneAsset, SpawnTransform);
+					
+					Clone->SetOwner(this);
+					Clone->SetInstigator(GetController());
+					Clone->FinishSpawning(SpawnTransform);
+
+					Clone->GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore);
+					Clone->GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
+					Clone->GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+					Clone->GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore);
+					Clone->GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
+					Clone->GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+					Clone->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+					
+					Clones.Emplace(Clone);
+					
+					FVector Point = UKismetMathLibrary::RandomPointInBoundingBox(HitResult.ImpactPoint, FVector(300.f, 300.f, 0.f));
+					Clone->SetActorLocation(Point);
+					FVector CloneFloor = Clone->GetFloor();
+					Point.Z = CloneFloor.Z + 100.f;
+					Clone->SetActorLocation(Point);
+
+					FVector Start = Clone->GetActorLocation();
+					FVector LookTarget = HitResult.GetActor()->GetActorLocation();
+					FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(Start, LookTarget);
+					LookAtRotation = FRotator(0.f, LookAtRotation.Yaw, 0.f);
+
+					Clone->SetActorRotation(LookAtRotation);
+
+					if (CloneSpawnParticle) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), CloneSpawnParticle, Point);
+					if (CloneSpawnSound) UGameplayStatics::PlaySoundAtLocation(this, CloneSpawnSound, Point);
+
+					// Make Weapon
+					AWeapon* Sword = GetWorld()->SpawnActor<AWeapon>(WeaponAsset);
+					CloneWeapons.Emplace(Sword);
+					Sword->Equip(Clone);
+					Sword->SetInstigator(GetController());
+
+					TArray<FName> ComboArr = { "Combo01", "Combo02", "DashAttack", "UpperAttack" };
+					int32 RandNum = FMath::RandRange(0, 3);
+
+					Clone->PlayMontage(CombatMontage, ComboArr[RandNum]);
+				}
+
+
+				CloneAttackDelay = false;
+			}), 1.f, false);
+	}
+	else if (!bCloneAttackKeyDown && !CloneAttackDelay)
+	{
+		if (bCloneReset)
+		{
+			bCloneReset = false;
+
+			for (auto Clone : Clones)
+			{
+				if (CloneRemoveParticle) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), CloneRemoveParticle, Clone->GetActorLocation());
+				if (CloneRemoveSound) UGameplayStatics::PlaySoundAtLocation(this, CloneRemoveSound, Clone->GetActorLocation());
+
+				Clone->Destroy();
+			}
+			for (auto Weapon : CloneWeapons) Weapon->Destroy();
+			Clones.Empty();
+			CloneWeapons.Empty();
+		}
+	}
+}
+
+void AMain::StartFirstSkillCooldown()
+{
+	FirstSkillCoolDown = true;
+
+	FirstSkillCoolDownUI = 0.f;
+
+	FTimerHandle CoolDownHandle;
+	GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			FirstSkillCoolDown = false;
+		}), FirstSkillCoolDownTime, false);
+}
+
+void AMain::StartSecondSkillCooldown()
+{
+	SecondSkillCoolDown = true;
+
+	SecondSkillCoolDownUI = 0.f;
+
+	FTimerHandle CoolDownHandle;
+	GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			SecondSkillCoolDown = false;
+		}), SecondSkillCoolDownTime, false);
+}
+
+void AMain::StartThirdSkillCooldown()
+{
+	ThirdSkillCoolDown = true;
+
+	ThirdSkillCoolDownUI = 0.f;
+
+	FTimerHandle CoolDownHandle;
+	GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			ThirdSkillCoolDown = false;
+		}), ThirdSkillCoolDownTime, false);
+}
+
+void AMain::StartFourthSkillCooldown()
+{
+	FourthSkillCoolDown = true;
+
+	FourthSkillCoolDownUI = 0.f;
+
+	FTimerHandle CoolDownHandle;
+	GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+		{
+			FourthSkillCoolDown = false;
+		}), FourthSkillCoolDownTime, false);
+}
+
+void AMain::FirstSkillCoolDownReturn()
+{
+	if (FirstSkillCoolDown && !FirstSkillCoolDownDelay)
+	{
+		FirstSkillCoolDownDelay = true;
+		FTimerHandle CoolDownHandle;
+		GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+			{
+				FirstSkillCoolDownUI += 1.f / FirstSkillCoolDownTime;
+				FirstSkillCoolDownDelay = false;
+			}), 1.f, false);
+	}
+}
+
+void AMain::SecondSkillCoolDownReturn()
+{
+	if (SecondSkillCoolDown && !SecondSkillCoolDownDelay)
+	{
+		SecondSkillCoolDownDelay = true;
+		FTimerHandle CoolDownHandle;
+		GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+			{
+				SecondSkillCoolDownUI += 1.f / SecondSkillCoolDownTime;
+				SecondSkillCoolDownDelay = false;
+			}), 1.f, false);
+	}
+}
+
+void AMain::ThirdSkillCoolDownReturn()
+{
+	if (ThirdSkillCoolDown && !ThirdSkillCoolDownDelay)
+	{
+		ThirdSkillCoolDownDelay = true;
+		FTimerHandle CoolDownHandle;
+		GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+			{
+				ThirdSkillCoolDownUI += 1.f / ThirdSkillCoolDownTime;
+				ThirdSkillCoolDownDelay = false;
+			}), 1.f, false);
+	}
+}
+
+void AMain::FourthSkillCoolDownReturn()
+{
+	if (FourthSkillCoolDown && !FourthSkillCoolDownDelay)
+	{
+		FourthSkillCoolDownDelay = true;
+		FTimerHandle CoolDownHandle;
+		GetWorld()->GetTimerManager().SetTimer(CoolDownHandle, FTimerDelegate::CreateLambda([&]()
+			{
+				FourthSkillCoolDownUI += 1.f / FourthSkillCoolDownTime;
+				FourthSkillCoolDownDelay = false;
+			}), 1.f, false);
+	}
 }

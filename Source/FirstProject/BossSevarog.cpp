@@ -36,8 +36,8 @@ ABossSevarog::ABossSevarog()
 		RushAttackMontage = AttackMontage.Object;
 	}
 
-	MaxHealth = 1000.f;
-	Health = 1000.f;
+	MaxHealth = 2000.f;
+	Health = 2000.f;
 
 	Damage = 30.f;
 
@@ -229,6 +229,23 @@ float ABossSevarog::TakeDamage(float DamageAmount, struct FDamageEvent const& Da
 			AMain* Main = Cast<AMain>(Coontroller->GetPawn());
 			if (Main && AnimInstance && DamagedMontage && !bDamagedIng)
 			{
+				// Show DamageNumbers
+				if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
+				{
+					const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
+					float DamageNumbers = PointDamageEvent->Damage;
+					bool Headshot = false;
+					if (0 == (PointDamageEvent->HitInfo.BoneName).Compare(FName(TEXT("Head"))))
+					{
+						DamageNumbers *= 1.5f;
+						Headshot = true;
+					}
+					Main->SpawnDamageNumbers(PointDamageEvent->HitInfo.Location, Headshot, DamageNumbers);
+
+					//헤드샷일경우 추가 데미지
+					if (!DecrementHealth(DamageNumbers - PointDamageEvent->Damage)) return DamageNumbers;
+				}
+
 				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());
 				LookAtRotation.Pitch = 0.f;
 				LookAtRotation.Roll = 0.f;		// (0.f, LookAtRotation.Yaw, 0.f);

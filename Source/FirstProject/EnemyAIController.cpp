@@ -12,6 +12,8 @@ const FName AEnemyAIController::TargetKey(TEXT("Target"));
 const FName AEnemyAIController::RandomNumKey(TEXT("RandomNum"));
 const FName AEnemyAIController::CanAttackKey(TEXT("CanAttack"));
 const FName AEnemyAIController::DamagedIngKey(TEXT("DamagedIng"));
+const FName AEnemyAIController::FreezingKey(TEXT("Freezing"));
+const FName AEnemyAIController::DieKey(TEXT("Die"));
 
 AEnemyAIController::AEnemyAIController()
 {

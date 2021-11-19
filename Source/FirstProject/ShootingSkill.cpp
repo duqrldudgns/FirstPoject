@@ -28,7 +28,7 @@ void AShootingSkill::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		if (Enemy)
 		{
 			Super::OnOverlapBegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
-			Enemy->DisplayHealthBar();
+			//Enemy->DisplayHealthBar();
 		}
 	}
 }

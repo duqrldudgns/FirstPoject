@@ -149,28 +149,32 @@ void AWeapon::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 				if (AnimInstance) 
 				{
 					FName SectionName = AnimInstance->Montage_GetCurrentSection();
-					if (SectionName == "Combo01") 
+					
+					FHitResult HitResult(ForceInit);
+					HitResult.Location = GetActorLocation();
+
+					if (SectionName == "Combo01")
 					{
-						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Basic);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
+						UGameplayStatics::ApplyPointDamage(Enemy, Damage, GetActorLocation(), HitResult, WeaponInstigator, this, WeaponOwner->Basic);
 					}
 					else if (SectionName == "Combo02")
 					{
-						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->KnockDown);
+						UGameplayStatics::ApplyPointDamage(Enemy, Damage, GetActorLocation(), HitResult, WeaponInstigator, this, WeaponOwner->KnockDown);
 					}
 					else if (SectionName == "DashAttack")
 					{
-						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Rush);
+						UGameplayStatics::ApplyPointDamage(Enemy, Damage, GetActorLocation(), HitResult, WeaponInstigator, this, WeaponOwner->Rush);
 					}
 					else if (SectionName == "UpperAttack")
 					{
-						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Upper);
+						UGameplayStatics::ApplyPointDamage(Enemy, Damage, GetActorLocation(), HitResult, WeaponInstigator, this, WeaponOwner->Upper);
 					}
 					else 
 					{
-						UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, WeaponOwner->Basic);
+						UGameplayStatics::ApplyPointDamage(Enemy, Damage, GetActorLocation(), HitResult, WeaponInstigator, this, WeaponOwner->Basic);
 					}
 
-					Enemy->DisplayHealthBar();
+					//Enemy->DisplayHealthBar();
 					WeaponOwner->GetWorld()->GetFirstPlayerController()->PlayerCameraManager->StartCameraShake(WeaponOwner->CamShake);
 
 					Enemy->ResetHitOnce();

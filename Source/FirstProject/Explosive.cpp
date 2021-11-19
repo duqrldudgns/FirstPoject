@@ -26,8 +26,9 @@ void AExplosive::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor
 		{
 			Super::OnOverlapBegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
 			
-			UGameplayStatics::ApplyDamage(OtherActor, Damage, ExplosiveInstigator, this, DamageTypeClass);	// 피해대상, 피해량, 컨트롤러(가해자), 피해 유발자, 손상유형
-			UE_LOG(LogTemp, Warning, TEXT("%d"), ExplosiveInstigator);
+			FHitResult HitResult(ForceInit);
+			HitResult.Location = GetActorLocation();
+			UGameplayStatics::ApplyPointDamage(OtherActor, Damage, GetActorLocation(), HitResult, ExplosiveInstigator, this, DamageTypeClass);
 
 			Destroy();
 		}

@@ -35,9 +35,9 @@ AEnemy::AEnemy()
 	//AgroSphere->SetupAttachment(GetRootComponent());
 	//AgroSphere->InitSphereRadius(600.f);
 
-	CombatSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CombatSphere"));
-	CombatSphere->SetupAttachment(GetRootComponent());
-	CombatSphere->InitSphereRadius(80.f);
+	//CombatSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CombatSphere"));
+	//CombatSphere->SetupAttachment(GetRootComponent());
+	//CombatSphere->InitSphereRadius(80.f);
 
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
 	CombatCollision->SetupAttachment(GetMesh(), FName("WeaponSocket"));	// 해당 이름을 가진 소켓에 콜리젼박스를 붙임
@@ -117,8 +117,8 @@ void AEnemy::BeginPlay()
 	//AgroSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapEnd);
 	//AgroSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);	// pickup을 agro로 터트리지 않기 위함
 
-	CombatSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapBegin);
-	CombatSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapEnd);
+	//CombatSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapBegin);
+	//CombatSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapEnd);
 
 	CombatCollision->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatOnOverlapBegin);
 	CombatCollision->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatOnOverlapEnd);
@@ -179,64 +179,64 @@ void AEnemy::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 //	}
 //}
 
-void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	if (OtherActor && Alive())
-	{
-		AMain* Main = Cast<AMain>(OtherActor);
-		if (Main)
-		{
-			Main->UpdateCombatTarget();
-
-			CombatTarget = Main;
-			bHasValidTarget = true;
-
-			bOverlappingCombatSphere = true;
-
-			//if (GetWorldTimerManager().IsTimerActive(TimerHandle))
-			//{
-			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
-			//	GetWorldTimerManager().ClearTimer(TimerHandle);
-
-			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
-			//}
-			//else if (TimerRemaining > 0)
-			//{
-			//	GetWorldTimerManager().ClearTimer(TimerHandle);
-
-			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
-			//}
-			//else 
-			//{
-			//	Attack();
-			//}
-		}
-	}
-}
-
-void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	if (OtherActor)
-	{
-		AMain* Main = Cast<AMain>(OtherActor);
-		if (Main)
-		{
-			bOverlappingCombatSphere = false;
-
-			if (Main->CombatTarget == this)
-			{
-				Main->UpdateCombatTarget();
-			}
-			//if (GetWorldTimerManager().IsTimerActive(TimerHandle) && !bAttacking)
-			//{
-			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
-			//	GetWorldTimerManager().PauseTimer(TimerHandle);
-
-			//	MoveToTarget(Main);
-			//}
-		}
-	}
-}
+//void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+//{
+//	if (OtherActor && Alive())
+//	{
+//		AMain* Main = Cast<AMain>(OtherActor);
+//		if (Main)
+//		{
+//			Main->UpdateCombatTarget();
+//
+//			CombatTarget = Main;
+//			bHasValidTarget = true;
+//
+//			bOverlappingCombatSphere = true;
+//
+//			//if (GetWorldTimerManager().IsTimerActive(TimerHandle))
+//			//{
+//			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
+//			//	GetWorldTimerManager().ClearTimer(TimerHandle);
+//
+//			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
+//			//}
+//			//else if (TimerRemaining > 0)
+//			//{
+//			//	GetWorldTimerManager().ClearTimer(TimerHandle);
+//
+//			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
+//			//}
+//			//else 
+//			//{
+//			//	Attack();
+//			//}
+//		}
+//	}
+//}
+//
+//void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+//{
+//	if (OtherActor)
+//	{
+//		AMain* Main = Cast<AMain>(OtherActor);
+//		if (Main)
+//		{
+//			bOverlappingCombatSphere = false;
+//
+//			if (Main->CombatTarget == this)
+//			{
+//				Main->UpdateCombatTarget();
+//			}
+//			//if (GetWorldTimerManager().IsTimerActive(TimerHandle) && !bAttacking)
+//			//{
+//			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
+//			//	GetWorldTimerManager().PauseTimer(TimerHandle);
+//
+//			//	MoveToTarget(Main);
+//			//}
+//		}
+//	}
+//}
 
 void AEnemy::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -414,8 +414,10 @@ bool AEnemy::DecrementHealth(float Amount)
 
 void AEnemy::Die()
 {
+	bDie = true;
 	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Dead);
 	GetCharacterMovement()->MaxWalkSpeed = 0.f;
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
 
 	AMain* Main = Cast<AMain>(CombatTarget);
 	if (Main)
@@ -428,6 +430,12 @@ void AEnemy::Die()
 	//	GetWorldTimerManager().ClearTimer(TimerHandle);
 	//}
 
+	UAnimInstance* Montage = GetMesh()->GetAnimInstance();
+	if (Montage->GetCurrentActiveMontage())
+	{
+		Montage->StopAllMontages(0.f);
+	}
+
 	if (AnimInstance && DamagedMontage)
 	{
 		AnimInstance->Montage_Play(DamagedMontage, 1.0f);
@@ -436,7 +444,7 @@ void AEnemy::Die()
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	//AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -448,13 +456,34 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 		if (Coontroller)	//누가 때리던 간에 그냥 맞아야함, 컨트롤러 연결하는 연습이라도 할겸 연결해봐야함
 		{
 			AMain* Main = Cast<AMain>(Coontroller->GetPawn());
-			if (Main && AnimInstance && DamagedMontage)
+			if (Main && AnimInstance && DamagedMontage && LightDamagedMontage)
 			{
+				DisplayHealthBar();
+
+				// Show DamageNumbers
+				if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
+				{
+					const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
+					float DamageNumbers = PointDamageEvent->Damage;
+					bool Headshot = false;
+					if (0 == (PointDamageEvent->HitInfo.BoneName).Compare(FName(TEXT("Head"))))
+					{
+						DamageNumbers *= 1.5f;
+						Headshot = true;
+					}
+					Main->SpawnDamageNumbers(PointDamageEvent->HitInfo.Location, Headshot, DamageNumbers);
+					
+					UE_LOG(LogTemp, Warning, TEXT("PointDamageTest"));
+
+					//헤드샷일경우 추가 데미지
+					if (!DecrementHealth(DamageNumbers - PointDamageEvent->Damage)) return DamageNumbers;
+				}
+
 				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());
 				LookAtRotation.Pitch = 0.f;
 				LookAtRotation.Roll = 0.f;		// (0.f, LookAtRotation.Yaw, 0.f);
 				//UE_LOG(LogTemp, Warning, TEXT("%s"), *LookAtRotation.ToString());
-
+				
 				FRotator HitRotation = UKismetMathLibrary::NormalizedDeltaRotator(LookAtRotation, GetActorRotation());
 				UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
 
@@ -467,23 +496,23 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 					{
 						if (-45.f <= HitRotation.Yaw && HitRotation.Yaw < 45.f)
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("FrontHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("FrontHit"), LightDamagedMontage);
 						}
 						else if (-135.f <= HitRotation.Yaw && HitRotation.Yaw < -45.f)
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("LeftHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("LeftHit"), LightDamagedMontage);
 						}
 						else if (45.f <= HitRotation.Yaw && HitRotation.Yaw < 135.f)
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("RightHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("RightHit"), LightDamagedMontage);
 						}
 						else
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("BackHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("BackHit"), LightDamagedMontage);
 						}
 					}
 					else	// 공중 공격 맞을 시
@@ -644,4 +673,13 @@ void AEnemy::ResetHitOnce()
 		{
 			bHitOnce = false;
 		}), WaitTime, false);
+}
+
+void AEnemy::StopAnim()
+{
+	UAnimInstance* Montage = GetMesh()->GetAnimInstance();
+	if (!Montage->GetCurrentActiveMontage())
+	{
+		bFreezing = true;
+	}
 }

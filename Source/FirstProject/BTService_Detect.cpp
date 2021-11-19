@@ -47,7 +47,7 @@ void UBTService_Detect::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 			//DrawDebugLine(World, ControllingPawn->GetActorLocation(), OverlapResult.GetActor()->GetActorLocation(), FColor::Red, false, 1.f);
 
 			AMain* Main = Cast<AMain>(OverlapResult.GetActor());
-			if (Main && Main->GetController()->IsPlayerController())	//플레이어 컨트롤러인지 파악
+			if (Main/* && Main->GetController()->IsPlayerController()*/)	//플레이어 컨트롤러인지 파악
 			{
 				FVector TargetLoc = Main->GetFloor();
 				//UE_LOG(LogTemp, Warning, TEXT("%s"), *TargetLoc.ToString());

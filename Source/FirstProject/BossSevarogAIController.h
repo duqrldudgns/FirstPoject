@@ -28,7 +28,8 @@ public:
 	static const FName TargetLocKey;
 	static const FName CanAttackKey;
 	static const FName DamagedIngKey;
-
+	static const FName FreezingKey;
+	static const FName DieKey;
 
 private:
 

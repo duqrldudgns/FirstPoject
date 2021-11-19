@@ -14,6 +14,8 @@ const FName ABossSevarogAIController::DistanceKey(TEXT("Distance"));
 const FName ABossSevarogAIController::TargetLocKey(TEXT("TargetLoc"));
 const FName ABossSevarogAIController::CanAttackKey(TEXT("CanAttack"));
 const FName ABossSevarogAIController::DamagedIngKey(TEXT("DamagedIng"));
+const FName ABossSevarogAIController::FreezingKey(TEXT("Freezing"));
+const FName ABossSevarogAIController::DieKey(TEXT("Die"));
 
 ABossSevarogAIController::ABossSevarogAIController()
 {

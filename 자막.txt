@@ -1,0 +1,203 @@
+안녕하세요. 에 지원하게된 진영훈입니다.
+소개해드릴 영상은 언리얼엔진4 기반으로 제작한 액션 RPG게임 포트폴리오 입니다.
+Effect, Widget, Material을 제외하고 모두 C++로 제작 했습니다.
+설명 시작하겠습니다.
+
+게임 시작 시 메인 메뉴 창부터 시작하며 옵션으로 해상도 설정이 가능합니다.
+
+게임 시작을 누르면 게임이 시작되며 오프닝 시네마틱 영상이 나오도록 했습니다.
+
+
+기본 동작부터 설명하겠습니다.
+
+모든 동작은 Blendspace를 사용해서 부드럽게 전환되도록 했습니다.
+
+Sprint
+속도가 빨라지며 에너지가 줄어들고 에너지가 모두 소진된 경우 Sprint 할 수 없도록 했습니다.
+또한 어느정도 에너지가 차기 전까지 Sprint를 할 수 없도록 했습니다.
+
+Double Jump
+JumpMaxCount를 늘려서 DoubleJump를 가능하게 하였고 Jump와 DoubleJump 후의 떨어지는 모션을 다르게 했습니다.
+
+Dash
+방향키를 연속 두번 입력 시 Dash가 가능하며 PoseableMesh를 통해 캐릭터의 모션을 따라가는 Tail을 생성하도록 했습니다.
+
+FootStep Sound / Particle
+발이 지면에 닿을 때마다 해당 지면의 SurfaceType에 따라서 각각의 Sound와 Particle이 발생합니다.
+
+Foot IK(Inverse Kinematic)
+Player의 두 발이 지면에 자연스럽게 붙어있도록 IK 기능을 구현 했습니다.
+지면과 Player 사이의 Offset을 구하고 Player의 발이 지면에 붙게 할 회전값을 구해서 본 구조에 IK가 적용되도록 했습니다.
+
+Bow Equip / UnEquip
+활 장착 시 스킬창이 활성화됩니다.
+
+Aim
+조준 시에 조준점이 생성되며, 카메라 위치를 Interp 하여 부드럽게 ZoomIn 되도록 했습니다.
+
+Draw
+활 시위를 당기면 마찬가지로 카메라가 ZoomIn되며, 당기는 시간에 따라 조준점이 축소됩니다.
+
+Arrow
+화살은 Projectile 형태로 날아갑니다.
+
+Draw 하는 시간에 따라서 화살의 속도가 달라집니다.
+
+RandomUnitVectorInConeInDegrees 함수를 통해 조준점의 큰 원 내에서 랜덤한 방향으로 화살이 발사되도록 했습니다.
+
+화살은 충돌 시 해당 자리에 Pickup 가능한 Actor로 남습니다.
+
+Can't Hit Widget
+활을 쏠 때 장애물이 있을 시 해당 방향으로 쏠 수 없다는 표시의 UI가 생성됩니다.
+SphereTraceSingle함수를 통해 카메라부터 조준점 사이에 존재하는 HitActor와 
+실제로 화살이 발사되는 곳부터 조준점 사이에 존재하는 HitActor가 다를 경우 그 위치에 Can't Hit Widget이 생성 되도록 했습니다.
+
+Quiver(화살통)
+가지고있는 화살의 숫자에 따라 화살통 내의 화살 숫자가 줄어들며, 0개가 되면 화살을 발사 할 수 없습니다.
+화살통 내의 화살은 Instanced Static Mesh의 RemoveInstance를 통해 보여지도록 했습니다.
+
+화살은 다시 주워서 사용 할 수 있고, AddInstance를 통해 화살통 내의 화살 숫자를 추가하도록 했습니다.
+
+Arrow Hit Sound / Particle
+화살이 지면에 닿을 때 해당 지면의 SurfaceType에 따라서 각각의 Sound와 Particle이 발생합니다.
+
+
+활과 적의 상호작용
+적에게 적중 시 체력바가 생성되며 지속적으로 공격하지 않는다면 일정 시간 후에 사라집니다.
+
+Damage에 따라서 Damage UI가 생성되도록 했습니다.
+Damage에 비례해서 Font Size를 조절 했고, 자연스러움을 위해 랜덤한 방향으로 날아가며 사라지도록 시간에 따라 Location을 Interp 하였습니다.
+머리에 맞출 경우 Damage가 배로 증가합니다.
+
+적에게 적중 시 Pickup형태의 Arrow를 적중한 Bone에 AttachToComponent하여 화살이 박혀있도록 했습니다.
+또한 해당 Bone에 상처를 내기 위해 SpawnDecalAttached로 HurtDecal을 생성했습니다.
+마찬가지로 화살은 다시 사용 가능합니다.
+
+때린 방향에 따라서 적의 Hit 모션이 달라집니다.
+FindLookAtRotation 함수로 때린 Player를 바라보는 Rotation을 구하고 NormalizedDeltaRotator 함수를 통해 맞은 방향을 구했습니다.
+
+
+스킬을 활성화 하면 이펙트가 생성되며, 화살을 발사하면 화살의 색도 변경됩니다.
+
+Detection Arrow Skill
+벽 너머에서도 적의 위치가 드러나도록 하는 스킬입니다.
+활이 적중한 곳에서 SphereTraceMultiForObjects로 적을 구하고 그 적들의 CustomDepth를 활성화하므로써 벽 너머에서도 적이 보일 수 있도록 했으며
+일정 시간이 지난 후에 비활성화되어 벽너머로 보이지 않도록 하였습니다.
+
+Ice Arrow Skill
+적중한 적을 일정 시간 동안 멈추게 합니다.
+적중한 적의 Material을 바꾸고 Mesh의 PauseAnims을 활성화하여 애니메이션을 정지하므로써 일정 시간 동안 멈추게 했습니다.
+
+Rain Of Arrows Skill
+적중한 곳에 화살비가 쏟아지며 피해를 입힙니다.
+이펙트가 닿는 곳 까지 피해를 입힐 수 있도록 화살이 적중한 곳에서 LineTraceSingleForObjects를 통해 지면을 찾고 
+그 부분을 SphereTraceMultiForObjects의 끝 지점으로 하여 지속적인 데미지를 주도록 했습니다.
+
+점프 도중 Draw 할 시에 적중률을 높이기 위해 속도를 늦췄습니다.
+GlobalTimeDilation을 조절하여 속도를 느려지게 했습니다.
+
+폭발물
+폭발물을 적중하면 터지고 주변에 데미지를 입힙니다.
+폭발물을 Destructible형태로 만들어서 잔해가 남도록 했고, ApplyRadiusDamage로 힘을 가해 잔해가 멀리 날라가도록 했습니다.
+또한 폭발물 아래에 BurningDecal이 생성되고 그 위에 있으면 지속적인 데미지를 입도록 했습니다.
+
+폭발물 주변에 폭발물이 있으면 터지도록 했고, 약간의 Delay를 통해 연쇄작용을 내도록 했습니다.
+
+
+Sword
+
+장착 시 스킬창이 활성화 됩니다.
+
+검을 휘두를 때 tail이 생성되며, 적을 때릴 시 CameraShake를 통해 타격감을 주었습니다.
+
+Combo Attack
+공격 도중 추가 입력 시 입력한 만큼 추가 동작을 이어가도록 했습니다.
+
+동작 마다의 DamageType을 다르게하여 피해를 입는 적의 Animation을 다르게 했습니다.
+
+Dash Attack
+앞으로 돌진하여 LaunchCharacter을 통해 적을 밀쳐내도록 했습니다.
+
+Upper Attack
+적을 공중으로 띄웁니다. 마찬가지로 LaunchCharacter을 통해 적을 띄웠으며 Player도 공중으로 띄웁니다.
+공중에서도 커맨드 입력 시 공중공격이 가능하도록 했고 콤보를 이어갈 수 있습니다.
+
+모든 동작은 도중에 대쉬로 동작을 중지 할 수 있습니다.
+
+Clone Attack Skill
+적 주변에 주기적으로 분신을 생성하고 공격하게 만듭니다.
+SphereTraceSingleForObjects로 적을 찾아내면 해당 적 주변으로 Clone이 랜덤한 위치에 생성될 수 있도록 RandomPointInBoundingBox함수를 사용했고
+생성된 Clone은 랜덤한 공격을 가하고 일정 시간이 지나면 사라집니다.
+적은 Clone에게도 어그로가 끌릴 수 있도록 했습니다.
+
+Blackhole Skill
+해당 위치로 순간이동하여 주변 모든 적을 끌어당기고 지속적인 데미지를 입히며 마지막에 폭발합니다.
+스킬 시전 시 마우스의 위치를 중앙으로 고정하게 만들고 GetHitResultUnderCursorForObjects을 통해 마우스가 가르키는 곳의 위치를 구했고,
+해당 위치에 PositionDecal을 생성하여 스킬이 나갈 위치를 나타내도록 했습니다.
+이 상태에서 커맨드 입력 할 시에 그 위치로 Player를 이동 시킨 후, 주위의 적에게 피해를 입히며 끌어당기도록 했습니다.
+스킬이 시전되는 동안은 SuperArmor 상태가 되어서 공격이 통하지 않도록 했습니다.
+
+Laser Skill
+전방에 있는 모든 적에게 피해를 입히고 느려지게 합니다.
+스킬 키를 떼기 전까지 쿨타임이 돌지않고 계속해서 스킬을 쓸 수 있도록 했습니다.
+
+FireBall Skill
+Projectile 형태로 FireBall을 날립니다.
+
+Guard
+전방의 적의 공격을 막을 수 있습니다.
+뒤에서 맞을 경우 피해를 입습니다.
+
+Lock On Target
+적 하나를 타겟팅하여 카메라를 고정합니다.
+bUseControllerRotationYaw를 활성화하여 카메라를 기준으로 캐릭터가 고정되어서 걸을 수 있도록 했습니다.
+
+대쉬 시에 적을 통과 할 수 있으며 적의 공격 회피가 가능합니다.
+
+
+Enemy
+Behavior Tree로 동작하며
+기본적으로 순찰하다가 적을 발견하면 이동속도가 증가하고 모션이 변경됩니다.
+
+공격 도중 특정 공격에 맞을 경우 공격을 중지하고 Hit Motion을 실행합니다.
+
+공격 후에 일정시간 딜레이를 가집니다.
+
+다양한 공격 패턴을 주었습니다.
+
+
+Floating Platform
+두 지점 사이를 번갈아가며 이동하는 Platform을 구현했습니다.
+
+Item
+DeltaTime에 현재의 Rotation을 곱해서 Tick을 통해 자연스럽게 돌아가도록 했으며, Overlap 시에 체력을 채워주고, 화살을 채워줍니다.
+
+Switch
+스위치를 밟으면 보스필드로 가는 차원문이 나옵니다.
+
+보스필드
+보스필드로 들어가기전 로딩화면과 시네마틱 영상이 나오도록 했습니다.
+
+시네마틱 영상이 끝나면 보스의 체력바가 나타나도록 했습니다.
+
+보스는 Enemy를 상속받았습니다.
+
+보스는 거리가 멀때 쓰는 스킬과 가까이 있을 때 쓰는 스킬이 다르도록 구현했습니다.
+
+거리가 멀 때
+
+RushAttack
+Player가 있는 방향으로 빠르게 돌진하고 Overlap 시에 피해를 줍니다.
+RushAttack을 시작하면 Speed를 증가시키고, Player에 대한 CollisionResponseToChannel을 Overlap으로 설정하여 겹칠 시 피해를 입힐 수 있도록 했습니다.
+Rush 하는 동안 PoseableMesh를 통해 캐릭터의 모션을 따라가는 Tail을 생성하도록 했습니다.
+
+ThunderstrokeAttack
+광범위한 곳에 Thunderstroke을 연속적으로 생성하여 피해를 줍니다.
+Thunderstroke가 생성되기 전, 해당 위치에 PositionDecal을 생성하여 위치를 알려줍니다.
+RandomPointInBoundingBox 함수를 통해 랜덤한 위치를 얻도록 했습니다.
+
+가까울 때
+기본 공격
+
+
+기본적으로 스킬 시전 중에 피해를 입어도 중간에 끊기지 않도록 했습니다.

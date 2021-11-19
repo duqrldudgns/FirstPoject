@@ -148,6 +148,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* FollowCameraZoomIn_;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+	class UParticleSystemComponent* PShoot_;
+
 	/** Base turn rates to scale turning functions for the camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseTurnRate;
@@ -157,10 +163,193 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sword", meta = (AllowPrivateAccess = "true"))
 	class UChildActorComponent* SwordAttached;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* BowAttached_;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+	class UStaticMeshComponent* Quiver_;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+	class UInstancedStaticMeshComponent* QuiverArrows_;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+	class USceneComponent* ArrowsVisualize_;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
 	class UDecalComponent* SelectDecal;
+	
+	void AddInstanceQuiverArrows();
 
 
+	/** Bow Init Setting */
+	void BowInitSet();
+
+	/** Quiver and arrows logic */
+	void SaveArrowTransforms();
+
+	/** Bow Equip & UnEquip */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* BowEquipMontage;
+
+	UFUNCTION(BlueprintCallable)
+	void EquipBow();
+	UFUNCTION(BlueprintCallable)
+	void UnEquipBow();
+
+	bool bBowEquipKeyDown;
+	void BowEquipKeyDown();
+	void BowEquipKeyUp();
+
+	/** Remove arrow from quiver */
+	UFUNCTION(BlueprintCallable)
+	void RemoveArrowMeshQuiver(int32 NewArrows);
+
+	void SubtractArrows(int32 ArrowsToSubtract);
+
+	/** Add arrow from quiver */
+	UFUNCTION(BlueprintCallable)
+	void AddArrowMeshQuiver(int32 NewArrows);
+
+	UFUNCTION(BlueprintCallable)
+	void AddArrows(int32 ArrowsToAdd);
+
+	/** Aim */
+	void BowAimInputPressed();
+	void BowAimInputReleased();
+
+	void CheckWantsToAim();
+
+	void ForceAimStart();
+	void ForceAimStop();
+
+	void StartAim();
+	void StopAim();
+
+	/** Follow Camera Location Change */
+	void ChangeFollowCameraZoomOut();
+	void ChangeFollowCameraZoomIn();
+	void ChangeFollowCamera();
+	bool bCameraZoomOut;
+	bool bCameraZoomIn;
+	void CameraChangeInterp();
+
+	FVector FollowCameraInitLoc;
+
+
+	/** Draw */
+	void BowDrawPressed();
+	void BowDrawReleased();
+	
+	void CheckWantsToDraw();
+	void CheckDrawStart();
+
+	void PlayFireMontage();
+
+	UFUNCTION(BlueprintCallable)
+	void FireArrowEnd();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Anims")
+	class UAnimMontage* ArrowFireMontage;
+
+	/** Bow */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float DefaultFieldOfView_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float DefaultArmLength_;
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	//float DefaultMaxWalkSpeed_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float TraceRadius_;	//50.f
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	AActor* AimAssistTarget_;	//BPFocusPoint
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float DistanceToAimAssistTarget_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float MaxAimAssistDistance_;	//2000,f
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float MaxTraceRadius_;	//100.f
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	FRotator StartRotation_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool ActiveAimAssist_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float AimAssistPlayRate_;	//1.f
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	// DefaultBow_;	//actor
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	//float WalkSpeed_;
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	// EquippedBow_;	//actor
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	class ABow* BowReference_;	//BPBow
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	//UUserWidget* PlayerUI_;	// init x  WBPlayerUIPostProcess 
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	int32 ArrowMeshesInquiver_;
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	//FTransform StartTransform_;	//scale 1.f
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool BowEquipped_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool WantsToAim_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	int32 Arrows_;	//99999
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool Aiming_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	int32 SubtractNumber_;
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	//bool ToggleAim_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool Drawing_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool WantsToDraw_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool CanDraw_;	// true
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool GrabArrowFromQuiver_;
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	//bool HideQuiver_;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	TArray<FTransform> ArrowTransform_;
+	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	//bool SwappingWeapon_;	 프리뷰에서 무기 바꿀때 체크하는것
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	int32 MaxArrows_;	//100
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float Draw_;
 
 
 	/** Foot IK */
@@ -294,6 +483,46 @@ public:
 	void FourthSkillKeyDown();
 	void FourthSkillKeyUp();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float FirstSkillCoolDownTime;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float FirstSkillCoolDownUI;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool FirstSkillCoolDown;
+	void StartFirstSkillCooldown();
+	void FirstSkillCoolDownReturn();
+	bool FirstSkillCoolDownDelay;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float SecondSkillCoolDownTime;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float SecondSkillCoolDownUI;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool SecondSkillCoolDown;
+	void StartSecondSkillCooldown();
+	void SecondSkillCoolDownReturn();
+	bool SecondSkillCoolDownDelay;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float ThirdSkillCoolDownTime;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float ThirdSkillCoolDownUI;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool ThirdSkillCoolDown;
+	void StartThirdSkillCooldown();
+	void ThirdSkillCoolDownReturn();
+	bool ThirdSkillCoolDownDelay;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float FourthSkillCoolDownTime;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float FourthSkillCoolDownUI;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	bool FourthSkillCoolDown;
+	void StartFourthSkillCooldown();
+	void FourthSkillCoolDownReturn();
+	bool FourthSkillCoolDownDelay;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Test")
 	bool bTestKeyDown;
 	void TestKeyDown();
@@ -309,9 +538,9 @@ public:
 
 	FORCEINLINE void SetActiveOverlappingItem(AItem* Item) { ActiveOverlappingItem = Item; }
 	
-	bool bInteractionKeyDown;
-	void InteractionKeyDown();
-	void InteractionKeyUp();
+	bool bSwordEquipKeyDown;
+	void SwordEquipKeyDown();
+	void SwordEquipKeyUp();
 
 
 	/** Equip - Weapon */
@@ -508,22 +737,6 @@ public:
 
 	FVector GetFloor();
 
-
-	/**Arrow Set*/
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
-	//float DefaultFieldOfView;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
-	//float DefaultArmLength;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
-	//float DefaultMaxWalkSpeed;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
-	//float TraceRadius;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
-	//float DistanceToAimAssistTarget;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow")
-	//float MaxAimAssistDistance;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
 	bool bGotHit;
 
@@ -534,6 +747,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ResetCasting();
 
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
 	float AimPitch;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
@@ -543,4 +757,113 @@ public:
 	/** Camera Shake */
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class UMatineeCameraShake> CamShake;
+
+
+	/** Change Walking 8 way */
+	void WalkingWayChange();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
+	bool bWalking8Way;
+
+	/** Lock On Target*/
+	bool bLockOnTargetKeyDown;
+	void LockOnTargetKeyDown();
+	void LockOnTargetKeyUp();
+
+	void LockOnTarget();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	AEnemy* LockOnEnemy;
+
+	void LockOnTargetCameraInterp();
+
+	/** Damage number generated when hitting an enemy */
+	UFUNCTION(BlueprintCallable)
+	void SpawnDamageNumbers(FVector InLocation, bool Headshot, float DamageNumbers);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	TSubclassOf<AActor> DamageNumberAsset;
+
+	bool bCombo1KeyDown;
+	void Combo1KeyDown();
+	void Combo1KeyUp();
+
+	bool bCombo2KeyDown;
+	void Combo2KeyDown();
+	void Combo2KeyUp();
+
+	/** Blackhole Skill */
+	bool bBlackholeKeyDown;
+	void Blackhole();
+	void BlackholeSKillCast();
+
+	class APositionDecal* BlackholeRangeDecal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	TSubclassOf<APositionDecal> BlackholeRangeDecalAsset;
+
+	void ShowBlackholeRange();
+	void HoldMouseCenter();
+
+	FHitResult MouseHitResult;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	FVector MousePoint;
+	
+	UFUNCTION(BlueprintCallable)
+	void BlackholeCastEnd();
+	UFUNCTION(BlueprintCallable)
+	void PlayBlackholeParticle();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	bool bBlackholeActive;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	class UParticleSystem* BlackholeStartParticle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	class USoundCue* BlackholeStartSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	class UParticleSystem* BlackholeParticle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	class USoundCue* BlackholeSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	class UParticleSystem* BlackholeEndParticle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	class USoundCue* BlackholeEndSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | Blackhole")
+	TArray<FHitResult> BlackholeHitResults;
+
+	/** Set SuperArmor */
+	bool bSuperArmor;
+
+	/** CloneAttack Skill */
+	void CloneAttack();
+	void CloneAttackCast();
+	bool bCloneAttackKeyDown;
+
+	FTimerHandle CloneAttackHandle;
+	bool CloneAttackDelay;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | CloneAttack")
+	TSubclassOf<AMain> CloneAsset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | CloneAttack")
+	TSubclassOf<class AWeapon> WeaponAsset;
+
+	TArray<AMain*> Clones;
+	TArray<AWeapon*> CloneWeapons;
+	bool bCloneReset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | CloneAttack")
+	class UParticleSystem* CloneSpawnParticle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | CloneAttack")
+	class USoundCue* CloneSpawnSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | CloneAttack")
+	class UParticleSystem* CloneRemoveParticle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | CloneAttack")
+	class USoundCue* CloneRemoveSound;
+
 };

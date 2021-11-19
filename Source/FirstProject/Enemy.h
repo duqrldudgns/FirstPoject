@@ -42,8 +42,8 @@ public:
 	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	//class USphereComponent* AgroSphere;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
-	class USphereComponent* CombatSphere;
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	//class USphereComponent* CombatSphere;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
 	class UDecalComponent* SelectDecal;
@@ -81,6 +81,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
 	UAnimMontage* DamagedMontage;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
+	UAnimMontage* LightDamagedMontage;
+
 	// Enemy마다 타격 시 생성하려는 파티클 유형(피 분출 등)이 다르기 때문에 Enemy에 파티클시스템을 달고있음
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	class UParticleSystem* HitParticles;
@@ -114,10 +117,10 @@ public:
 	//UFUNCTION()
 	//virtual void AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	UFUNCTION()
-	virtual void CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-	UFUNCTION()
-	virtual void CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	//UFUNCTION()
+	//virtual void CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	//UFUNCTION()
+	//virtual void CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UFUNCTION()
 	virtual void CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -218,4 +221,11 @@ public:
 
 	void AttackDelay();
 	float AttDelay;
+
+	void StopAnim();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anims")
+	bool bFreezing;
+
+	bool bDie;
 };
