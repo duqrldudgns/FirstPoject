@@ -2,27 +2,27 @@
 
 
 #include "Enemy.h"
-#include "Components/SphereComponent.h"
-#include "AIController.h"
-#include "Main.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Components/BoxComponent.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "Engine/SkeletalMeshSocket.h"
-#include "Sound/SoundCue.h"
-#include "Animation/AnimInstance.h"
-#include "TimerManager.h"
-#include "Components/CapsuleComponent.h"
-#include "MainPlayerController.h"
-#include "Weapon.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "EnemyAIController.h"
 #include "Components/DecalComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Components/SphereComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/ChildActorComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/SkeletalMeshSocket.h"
+#include "Animation/AnimInstance.h"
+#include "MainPlayerController.h"
 #include "Math/UnrealMathUtility.h"
+#include "EnemyAIController.h"
+#include "Sound/SoundCue.h"
+#include "TimerManager.h"
+#include "AIController.h"
+#include "Weapon.h"
+#include "Main.h"
 
 
 // Sets default values
@@ -30,14 +30,6 @@ AEnemy::AEnemy()
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
-	//AgroSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AgroSphere"));
-	//AgroSphere->SetupAttachment(GetRootComponent());
-	//AgroSphere->InitSphereRadius(600.f);
-
-	//CombatSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CombatSphere"));
-	//CombatSphere->SetupAttachment(GetRootComponent());
-	//CombatSphere->InitSphereRadius(80.f);
 
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
 	CombatCollision->SetupAttachment(GetMesh(), FName("WeaponSocket"));	// 해당 이름을 가진 소켓에 콜리젼박스를 붙임
@@ -70,8 +62,8 @@ AEnemy::AEnemy()
 	bHitOnce = false;
 	bCanAttack = true;
 
-	Health = 75.f;
-	MaxHealth = 100.f;
+	Health = 150.f;
+	MaxHealth = 150.f;
 	Damage = 10.f;
 
 	DeathDelay = 5.0f;
@@ -103,22 +95,12 @@ void AEnemy::BeginPlay()
 
 	// 충돌 유형 지정
 	GetCapsuleComponent()->SetCollisionProfileName("Enemy");
-	//GetCapsuleComponent()->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel2);	//Enemy
-	//GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Overlap);
-	//GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore);
 
 	// 무기 충돌 유형 지정
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision); // QueryOnly : 물리학 계산 하지 않음
 	CombatCollision->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);	// 모든Dynamic 요소에 대한 충돌
 	CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);	// 그 충돌에 대한 반응은 무시하고
 	CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Overlap);	// Pawn에 대한 충돌만 Overlap으로 설정
-
-	//AgroSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapBegin);
-	//AgroSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapEnd);
-	//AgroSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);	// pickup을 agro로 터트리지 않기 위함
-
-	//CombatSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapBegin);
-	//CombatSphere->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatSphereOnOverlapEnd);
 
 	CombatCollision->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::CombatOnOverlapBegin);
 	CombatCollision->OnComponentEndOverlap.AddDynamic(this, &AEnemy::CombatOnOverlapEnd);
@@ -132,6 +114,18 @@ void AEnemy::BeginPlay()
 void AEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (bSlowDebuff && !bSlowDebuffOnce)
+	{
+		bSlowDebuffOnce = true;
+
+		FTimerHandle RecoveryHandle;
+		GetWorld()->GetTimerManager().SetTimer(RecoveryHandle, FTimerDelegate::CreateLambda([&]()
+			{
+				bSlowDebuff = false;
+				bSlowDebuffOnce = false;
+			}), 0.8f, false);
+	}
 }
 
 // Called to bind functionality to input
@@ -141,103 +135,6 @@ void AEnemy::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 }
 
-//void AEnemy::AgroSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-//{
-//	if (OtherActor && Alive())
-//	{
-//		AMain* Main = Cast<AMain>(OtherActor);
-//		if (Main)
-//		{
-//			MoveToTarget(Main);
-//		}
-//	}
-//}
-//
-//void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-//{
-//	if (OtherActor)
-//	{
-//		AMain* Main = Cast<AMain>(OtherActor);
-//		if (Main)
-//		{
-//			if (Alive()) 
-//			{
-//				SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
-//			}
-//			GetCharacterMovement()->MaxWalkSpeed = 300.f;
-//
-//			if (AIController)
-//			{
-//				AIController->StopMovement();
-//			}
-//		
-//			Main->UpdateCombatTarget();
-//			
-//			CombatTarget = nullptr;
-//			bHasValidTarget = false;
-//		}
-//	}
-//}
-
-//void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-//{
-//	if (OtherActor && Alive())
-//	{
-//		AMain* Main = Cast<AMain>(OtherActor);
-//		if (Main)
-//		{
-//			Main->UpdateCombatTarget();
-//
-//			CombatTarget = Main;
-//			bHasValidTarget = true;
-//
-//			bOverlappingCombatSphere = true;
-//
-//			//if (GetWorldTimerManager().IsTimerActive(TimerHandle))
-//			//{
-//			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
-//			//	GetWorldTimerManager().ClearTimer(TimerHandle);
-//
-//			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
-//			//}
-//			//else if (TimerRemaining > 0)
-//			//{
-//			//	GetWorldTimerManager().ClearTimer(TimerHandle);
-//
-//			//	GetWorldTimerManager().SetTimer(TimerHandle, this, &AEnemy::Attack, TimerRemaining);
-//			//}
-//			//else 
-//			//{
-//			//	Attack();
-//			//}
-//		}
-//	}
-//}
-//
-//void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-//{
-//	if (OtherActor)
-//	{
-//		AMain* Main = Cast<AMain>(OtherActor);
-//		if (Main)
-//		{
-//			bOverlappingCombatSphere = false;
-//
-//			if (Main->CombatTarget == this)
-//			{
-//				Main->UpdateCombatTarget();
-//			}
-//			//if (GetWorldTimerManager().IsTimerActive(TimerHandle) && !bAttacking)
-//			//{
-//			//	TimerRemaining = GetWorldTimerManager().GetTimerRemaining(TimerHandle);
-//			//	GetWorldTimerManager().PauseTimer(TimerHandle);
-//
-//			//	MoveToTarget(Main);
-//			//}
-//		}
-//	}
-//}
-
 void AEnemy::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (OtherActor)
@@ -245,17 +142,7 @@ void AEnemy::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			//if (Main->HitParticles)
-			//{
-			//	// 스켈레톤에 들어가 설정해둔 소켓 이름인 "TipSocket"을 가져와 그 위치에 효과 발생		-	Weapon 설정과 비슷하지만 다르니 참고
-			//	const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
-			//	if (TipSocket)
-			//	{
-			//		FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
-			//		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->HitParticles, SocketLocation, FRotator(0.f), false);
-			//	}
-			//}
-
+			
 			FHitResult hitResult(ForceInit);
 
 			if (DamageTypeClass)
@@ -276,7 +163,6 @@ void AEnemy::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 
 void AEnemy::CombatOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-
 }
 
 void AEnemy::MoveToTarget(class AMain* Target)	//@@@@@FIX ERROR : 네비게이션박스 밖에 있는 캐릭터 발견 시 에러남
@@ -366,29 +252,12 @@ void AEnemy::Attack()
 	}
 }
 
-//@@@@@FIX ERROR : 공격할 때 점프하고있으면 에러남
-//@@@@@FIX TODO : CombatSphereOnOverlapBegin을 벗어나지않게 Enemy의 뒤로 돌면 앞만 계속 때리고 있음 - Rotator주면될듯
 void AEnemy::AttackEnd()
 {
 	bAttacking = false;
 
 	OnAttackEnd.Broadcast();	// 델리게이트를 호출
 	
-	//GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([&]()
-	//{
-	//	if (bOverlappingCombatSphere) {
-	//		Attack();
-	//	}
-	//	else {
-	//		if (CombatTarget)
-	//		{
-	//			MoveToTarget(CombatTarget);
-	//		}
-	//	}
-
-	//	// TimerHandle 초기화
-	//	GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
-	//}), AttackDelay, false);	// 반복하려면 false를 true로 변경
 }
 
 void AEnemy::PlaySwingSound()
@@ -425,11 +294,6 @@ void AEnemy::Die()
 		Main->UpdateCombatTarget();
 	}
 
-	//if (GetWorldTimerManager().IsTimerActive(TimerHandle))
-	//{
-	//	GetWorldTimerManager().ClearTimer(TimerHandle);
-	//}
-
 	UAnimInstance* Montage = GetMesh()->GetAnimInstance();
 	if (Montage->GetCurrentActiveMontage())
 	{
@@ -443,8 +307,6 @@ void AEnemy::Die()
 	}
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	//AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	//CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -456,7 +318,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 		if (Coontroller)	//누가 때리던 간에 그냥 맞아야함, 컨트롤러 연결하는 연습이라도 할겸 연결해봐야함
 		{
 			AMain* Main = Cast<AMain>(Coontroller->GetPawn());
-			if (Main && AnimInstance && DamagedMontage && LightDamagedMontage)
+			if (Main && AnimInstance && DamagedMontage)
 			{
 				DisplayHealthBar();
 
@@ -496,23 +358,23 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 					{
 						if (-45.f <= HitRotation.Yaw && HitRotation.Yaw < 45.f)
 						{
-							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("FrontHit"), LightDamagedMontage);
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("FrontHit"), DamagedMontage);
 						}
 						else if (-135.f <= HitRotation.Yaw && HitRotation.Yaw < -45.f)
 						{
-							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("LeftHit"), LightDamagedMontage);
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("LeftHit"), DamagedMontage);
 						}
 						else if (45.f <= HitRotation.Yaw && HitRotation.Yaw < 135.f)
 						{
-							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("RightHit"), LightDamagedMontage);
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("RightHit"), DamagedMontage);
 						}
 						else
 						{
-							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("BackHit"), LightDamagedMontage);
+							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("BackHit"), DamagedMontage);
 						}
 					}
 					else	// 공중 공격 맞을 시

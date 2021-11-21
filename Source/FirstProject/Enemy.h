@@ -39,12 +39,6 @@ public:
 	void SetEnemyMovementStatus(EEnemyMovementStatus Status);
 	FORCEINLINE EEnemyMovementStatus GetEnemyMovementStatus() { return EnemyMovementStatus; }
 	
-	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
-	//class USphereComponent* AgroSphere;
-
-	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
-	//class USphereComponent* CombatSphere;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
 	class UDecalComponent* SelectDecal;
 
@@ -111,16 +105,6 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	//UFUNCTION()
-	//virtual void AgroSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-	//UFUNCTION()
-	//virtual void AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
-
-	//UFUNCTION()
-	//virtual void CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-	//UFUNCTION()
-	//virtual void CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UFUNCTION()
 	virtual void CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -228,4 +212,9 @@ public:
 	bool bFreezing;
 
 	bool bDie;
+
+	bool bSlowDebuff;
+	bool bSlowDebuffOnce;
+
+	
 };

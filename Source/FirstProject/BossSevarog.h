@@ -29,6 +29,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Particles")
 	class UParticleSystemComponent* AuraParticle;
 
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+
+	/** Rush Attack */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
 	class UAnimMontage* RushAttackMontage;
 
@@ -38,6 +42,7 @@ public:
 	void Rush();
 
 
+	/** Thunderstroke Attack  */
 	UFUNCTION(BlueprintCallable)
 	void ThunderstrokeAttack();
 
@@ -63,6 +68,33 @@ public:
 
 	TArray<FVector> RandomPoints;
 
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	/** Smash Attack */
+	UFUNCTION(BlueprintCallable)
+	void ShowSmashRange();
+
+	UFUNCTION(BlueprintCallable)
+	void Smash();
+
+	FVector SmashLoc;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	UParticleSystem* SmashParticle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	class USoundCue* SmashSound;
+
+
+	/** Create Spawner */
+	UFUNCTION(BlueprintCallable)
+	void CreateEnemySpawner();
+
+	void SpawnEnemyAttack();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anims")
+	class UAnimMontage* SpawnEnemyMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TSubclassOf<class ASpawnVolume> EnemySpawner;
 
 };

@@ -285,26 +285,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	float AimAssistPlayRate_;	//1.f
 	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	// DefaultBow_;	//actor
-	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	//float WalkSpeed_;
-	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	// EquippedBow_;	//actor
-	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	class ABow* BowReference_;	//BPBow
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	//UUserWidget* PlayerUI_;	// init x  WBPlayerUIPostProcess 
-	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	int32 ArrowMeshesInquiver_;
-	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	//FTransform StartTransform_;	//scale 1.f
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	bool BowEquipped_;
@@ -320,10 +305,7 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	int32 SubtractNumber_;
-	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	//bool ToggleAim_;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	bool Drawing_;
 	
@@ -335,15 +317,9 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	bool GrabArrowFromQuiver_;
-	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	//bool HideQuiver_;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	TArray<FTransform> ArrowTransform_;
-	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	//bool SwappingWeapon_;	 프리뷰에서 무기 바꿀때 체크하는것
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
 	int32 MaxArrows_;	//100
@@ -367,8 +343,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
 	float FootOffsetR;
 	
-
-
 
 	/**
 	/*

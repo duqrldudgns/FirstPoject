@@ -5,8 +5,8 @@
 #include "Components/Boxcomponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
-#include "Enemy.h"
 #include "AIController.h"
+#include "Enemy.h"
 
 // Sets default values
 ASpawnVolume::ASpawnVolume()

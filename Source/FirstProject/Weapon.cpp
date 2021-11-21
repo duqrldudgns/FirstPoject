@@ -2,16 +2,15 @@
 
 
 #include "Weapon.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Main.h"
-#include "Engine/SkeletalMeshSocket.h"
-#include "Sound/SoundCue.h"
-#include "Kismet/GameplayStatics.h"
-#include "particles/ParticleSystemComponent.h"
 #include "Components/BoxComponent.h"
-#include "Enemy.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "particles/ParticleSystemComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
+#include "Sound/SoundCue.h"
+#include "Enemy.h"
+#include "Main.h"
 
 AWeapon::AWeapon()
 {
@@ -25,7 +24,7 @@ AWeapon::AWeapon()
 
 	WeaponState = EWeaponState::EWS_Pickup;
 
-	Damage = 25.f;
+	Damage = 35.f;
 }
 
 void AWeapon::BeginPlay()
@@ -34,15 +33,9 @@ void AWeapon::BeginPlay()
 
 	// 충돌 유형 지정
 	CombatCollision->SetCollisionProfileName("Sword");
-	//CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision); // QueryOnly : 물리학 계산 하지 않음
-	//CombatCollision->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel3);	// 모든Dynamic 요소에 대한 충돌
-	//CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);	// 그 충돌에 대한 반응은 무시하고
-	////CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);	// Pawn에 대한 충돌만 Overlap으로 설정
-	//CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Overlap);	
 
 	CombatCollision->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::CombatOnOverlapBegin);
 	CombatCollision->OnComponentEndOverlap.AddDynamic(this, &AWeapon::CombatOnOverlapEnd);
-
 }
 
 
@@ -103,8 +96,7 @@ void AWeapon::Equip(AMain* Character)
 
 		if (OnEquipSound) UGameplayStatics::PlaySound2D(this, OnEquipSound);
 
-		// 불효과 물효과 등을 유지할 것인지
-		if (!bWeaponParticles) IdleParticlesComponent->Deactivate();	// 체크되어 있지 않으면 파티클 효과 끄기
+		if (!bWeaponParticles) IdleParticlesComponent->Deactivate();
 
 	}
 }
@@ -145,7 +137,7 @@ void AWeapon::CombatOnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 			}
 			if (DamageTypeClass)
 			{
-				UAnimInstance* AnimInstance = WeaponOwner->GetMesh()->GetAnimInstance();		//애니메이션 인스턴스를 가져옴
+				UAnimInstance* AnimInstance = WeaponOwner->GetMesh()->GetAnimInstance();
 				if (AnimInstance) 
 				{
 					FName SectionName = AnimInstance->Montage_GetCurrentSection();

@@ -2,34 +2,34 @@
 
 
 #include "Main.h"
-#include "GameFramework/SpringArmComponent.h"
-#include "Camera/CameraComponent.h"
-#include "Engine/World.h"
-#include "Components/CapsuleComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "MainAnimInstance.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "Weapon.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Animation/AnimInstance.h"
-#include "Sound/SoundCue.h"
-#include "Kismet/GameplayStatics.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "Enemy.h"
-#include "MainPlayerController.h"
-#include "FirstSaveGame.h"
-#include "ItemStorage.h"
-#include "Math/TransformNonVectorized.h"
-#include "TimerManager.h"
-#include "ShootingSkill.h"
-#include "Cpt_FootIK.h"
-#include "Components/DecalComponent.h"
-#include "Particles/ParticleSystemComponent.h"
 #include "Components/ChildActorComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
-#include "Bow.h"
+#include "Components/DecalComponent.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Math/TransformNonVectorized.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "Animation/AnimInstance.h"
+#include "MainPlayerController.h"
+#include "MainAnimInstance.h"
+#include "Sound/SoundCue.h"
+#include "FirstSaveGame.h"
+#include "ShootingSkill.h"
 #include "DamageNumbers.h"
 #include "PositionDecal.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
+#include "ItemStorage.h"
+#include "Cpt_FootIK.h"
+#include "Weapon.h"
+#include "Enemy.h"
+#include "Bow.h"
 
 // Sets default values
 AMain::AMain()
@@ -171,39 +171,16 @@ AMain::AMain()
 
 	FollowCameraInitLoc = FollowCamera->GetRelativeLocation();
 
+	// Bow
 	DefaultFieldOfView_ = FollowCamera->FieldOfView;
 	DefaultArmLength_ = CameraBoom->TargetArmLength;
-	////float DefaultMaxWalkSpeed_;
 	TraceRadius_ = 50.f;
-	//AActor* AimAssistTarget_;	//BPFocusPoint
-	//float DistanceToAimAssistTarget_;
 	MaxAimAssistDistance_ = 2000.f;
 	MaxTraceRadius_ = 100.f;
-	//FRotator StartRotation_;
-	//bool ActiveAimAssist_;
 	AimAssistPlayRate_ = 1.f;
-	//// DefaultBow_;	//actor
-	////float WalkSpeed_;
-	//// EquippedBow_;	//actor
-	//class ABow* BowReference_;	//BPBow
-	////UUserWidget* PlayerUI_;	// init x  WBPlayerUIPostProcess 
-	//int32 ArrowMeshesInquiver_;
-	////StartTransform_.SetScale3D(FVector(1.f));
-	//bool BowEquipped_;
-	//bool WantsToAim_;
 	Arrows_ = 99999;	
-	//bool Aiming_;
-	//int32 SubtractNumber_;
-	//bool ToggleAim_;
-	//bool Drawing_;
-	//bool WantsToDraw_;
 	CanDraw_ = true;	
-	//bool GrabArrowFromQuiver_;
-	//bool HideQuiver_;
-	//TArray<FTransform> ArrowTransform_;
-	//bool SwappingWeapon_;
 	MaxArrows_ = 10;	
-	//float Draw_;
 
 	FirstSkillCoolDownUI = 1.f;
 	SecondSkillCoolDownUI = 1.f;
@@ -223,10 +200,6 @@ void AMain::BeginPlay()
 
 	// 충돌 유형 지정
 	GetCapsuleComponent()->SetCollisionProfileName("Player");
-	//GetCapsuleComponent()->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel1);	//Player
-	//GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Ignore);
-	//GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel4, ECollisionResponse::ECR_Block);
-	//GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
 
 	//컨트롤러를 세팅해야 누가 피해를 주는지 알 수 있고 피해를 줄 수 있음
 	SetInstigator(GetController());
@@ -395,9 +368,6 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUp);
-
-	//PlayerInputComponent->BindAction("Dodge", IE_Pressed, this, &AMain::DodgeKeyDown);
-	//PlayerInputComponent->BindAction("Dodge", IE_Released, this, &AMain::DodgeKeyUp);
 
 	PlayerInputComponent->BindAction("SwordEquip", IE_Pressed, this, &AMain::SwordEquipKeyDown);
 	PlayerInputComponent->BindAction("SwordEquip", IE_Released, this, &AMain::SwordEquipKeyUp);
@@ -744,8 +714,6 @@ void AMain::ShowPickupLocations()
 	{
 		UKismetSystemLibrary::DrawDebugSphere(this, Location, 25.f, 16, FLinearColor::Green, 5.f, 0.5f);
 	}
-	//float fTimerElapsed = GetWorldTimerManager().GetTimerElapsed(TimerHandle);	//경과 시간 반환
-	//UE_LOG(LogTemp, Warning, TEXT("%f"), fTimerElapsed);
 }
 
 void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
@@ -802,7 +770,6 @@ void AMain::Attack()
 void AMain::AirAttack() {
 
 	bAttacking = true;
-	//if (CombatTarget) SetInterpToEnemy(true);	// 적이 나를 공격 대상으로 삼았다면 공격 보정이 가능한 상태로 만듦
 
 	int32 Temp = JumpCurrentCount;
 	GetCharacterMovement()->SetMovementMode(MOVE_Flying);	// Flying 상태로 전환 , 중력 x
@@ -880,20 +847,6 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 	FRotator HitRotation = UKismetMathLibrary::NormalizedDeltaRotator(LookAtRotation, GetActorRotation());
 	UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
 
-	//if (!bGotHit) {
-	//	bGotHit = true;
-	//	
-	//	FTimerHandle HitTimerHandle;
-	//	GetWorld()->GetTimerManager().SetTimer(HitTimerHandle, FTimerDelegate::CreateLambda([&]()
-	//		{
-	//			bGotHit = false;
-
-	//			// TimerHandle 초기화
-	//			GetWorld()->GetTimerManager().ClearTimer(HitTimerHandle);
-	//		}), 0.3f, false);	// 반복하려면 false를 true로 변경
-	//}
-
-
 	if (GetMovementStatus() == EMovementStatus::EMS_Guard && -90.f < HitRotation.Yaw && HitRotation.Yaw < 90.f)	// 캐릭터가 가드 상태 일 시
 	{
 		SetGuardAccept(true);
@@ -948,20 +901,10 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 					PlayMontage(DamagedMontage, MontageList[Num]);
 				}
 			}
-		}
 
-		if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
-		{
-		}
 			DecrementHealth(HitDamage, DamageCauser);
-
-		if (HitParticles)
-		{
-			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitParticles, GetActorLocation(), FRotator(0.f), false);
-		}
-		if (HitSound)
-		{
-			UGameplayStatics::PlaySound2D(this, HitSound);
+			if (HitParticles) UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitParticles, GetActorLocation(), FRotator(0.f), false);
+			if (HitSound) UGameplayStatics::PlaySound2D(this, HitSound);
 		}
 	}
 
@@ -1053,6 +996,8 @@ void AMain::GuardAcceptEnd()
 
 void AMain::SwitchLevel(FName LevelName)
 {
+	SaveGame();
+
 	UWorld* World = GetWorld();
 	if (World)
 	{
@@ -1154,7 +1099,6 @@ void AMain::LoadGame(bool SetPosition)
 	}
 }
 
-//@@@@@FIX TODO : 장비한 상태 그대로 다음 레벨에 넘어가는 것 구현
 void AMain::LoadGameNoSwitch()
 {
 	// 데이터를 설정할 비어 있는 새 SaveGame 개체를 만듦
@@ -1389,7 +1333,6 @@ void AMain::WaveSkillActivation()
 			AEnemy* Enemy = Cast<AEnemy>(HitResult.Actor);
 			if (Enemy)
 			{
-				//@@@@@ TODO : 적이 맞을 때 스킬의 파티클과 사운드도 있으면 좋을듯
 				if (Enemy->HitParticles)
 				{
 					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Enemy->HitParticles, HitResult.ImpactPoint, FRotator(0.f), true);
@@ -1404,9 +1347,7 @@ void AMain::WaveSkillActivation()
 
 					UGameplayStatics::ApplyPointDamage(Enemy, WaveSkillDamage, GetActorLocation(), HitResult, MainInstigator, this, Basic);
 					Enemy->GetCharacterMovement()->MaxWalkSpeed = 100.f;
-
-					//Enemy->DisplayHealthBar();
-					//UE_LOG(LogTemp, Warning, TEXT("%s"), HitResult);
+					Enemy->bSlowDebuff = true;
 				}
 			}
 		}
@@ -1524,6 +1465,9 @@ void AMain::DodgeEnd()
 	bDodgeIng = false;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);	// Enemy에 대한 충돌 설정
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Block);	// Enemy의 무기
+
+	if (bGotHit) bGotHit = false;
+	CanDraw_ = true;
 }
 
 void AMain::AddInstanceQuiverArrows()
@@ -1599,7 +1543,6 @@ void AMain::EquipBow()
 
 void AMain::UnEquipBow()
 {
-	//Check 원래는 BowEquipKeyDown()에 있어야 할 애들, 이상하면 보내보자 clear
 	BowReference_->HideArrow();
 	BowReference_->DontHoldCable();
 
@@ -1607,7 +1550,6 @@ void AMain::UnEquipBow()
 
 	BowEquipped_ = false;
 	SetArmedStatus(EArmedStatus::EAS_Normal);
-	//여기까지
 
 	BowAttached_->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true), "Bow_Back");
 	if (BowReference_->BowUnEquipSound) UGameplayStatics::PlaySound2D(this, BowReference_->BowUnEquipSound);

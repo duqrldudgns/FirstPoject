@@ -15,6 +15,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Thunderstroke.h"
 #include "PositionDecal.h"
+#include "Sound/SoundCue.h"
+#include "SpawnVolume.h"
 
 ABossSevarog::ABossSevarog()
 {
@@ -96,6 +98,7 @@ void ABossSevarog::Rush()
 {
 	GetCharacterMovement()->MaxWalkSpeed = 8000.f;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Overlap);	// Player에 대한 충돌 설정
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
 
 	if (Controller)
 	{
@@ -116,6 +119,7 @@ void ABossSevarog::AttackEnd()
 
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Block);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
 
 }
 
@@ -129,7 +133,7 @@ void ABossSevarog::CapsuleOnOverlapBegin(UPrimitiveComponent* OverlappedComponen
 
 		if (DamageTypeClass)
 		{
-			UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, Controller, this, DamageTypeClass); // 포인트 데미지
+			UGameplayStatics::ApplyPointDamage(Main, Damage, GetActorLocation(), hitResult, Controller, this, Main->Rush); // 포인트 데미지
 		}
 	}
 }
@@ -229,23 +233,6 @@ float ABossSevarog::TakeDamage(float DamageAmount, struct FDamageEvent const& Da
 			AMain* Main = Cast<AMain>(Coontroller->GetPawn());
 			if (Main && AnimInstance && DamagedMontage && !bDamagedIng)
 			{
-				// Show DamageNumbers
-				if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
-				{
-					const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
-					float DamageNumbers = PointDamageEvent->Damage;
-					bool Headshot = false;
-					if (0 == (PointDamageEvent->HitInfo.BoneName).Compare(FName(TEXT("Head"))))
-					{
-						DamageNumbers *= 1.5f;
-						Headshot = true;
-					}
-					Main->SpawnDamageNumbers(PointDamageEvent->HitInfo.Location, Headshot, DamageNumbers);
-
-					//헤드샷일경우 추가 데미지
-					if (!DecrementHealth(DamageNumbers - PointDamageEvent->Damage)) return DamageNumbers;
-				}
-
 				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Main->GetActorLocation());
 				LookAtRotation.Pitch = 0.f;
 				LookAtRotation.Roll = 0.f;		// (0.f, LookAtRotation.Yaw, 0.f);
@@ -292,5 +279,122 @@ float ABossSevarog::TakeDamage(float DamageAmount, struct FDamageEvent const& Da
 		}
 	}
 
+	AController* Coontroller = Cast<AController>(EventInstigator);
+	if (Coontroller)	//누가 때리던 간에 그냥 맞아야함, 컨트롤러 연결하는 연습이라도 할겸 연결해봐야함
+	{
+		AMain* Main = Cast<AMain>(Coontroller->GetPawn());
+		if (Main && AnimInstance && DamagedMontage && !bDamagedIng)
+		{
+			// Show DamageNumbers
+			if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))	// PointDamage 받기
+			{
+				const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
+				float DamageNumbers = PointDamageEvent->Damage;
+				bool Headshot = false;
+				if (0 == (PointDamageEvent->HitInfo.BoneName).Compare(FName(TEXT("Head"))))
+				{
+					DamageNumbers *= 1.5f;
+					Headshot = true;
+				}
+				Main->SpawnDamageNumbers(PointDamageEvent->HitInfo.Location, Headshot, DamageNumbers);
+
+				//헤드샷일경우 추가 데미지
+				if (!DecrementHealth(DamageNumbers - PointDamageEvent->Damage)) return DamageNumbers;
+			}
+		}
+	}
+
 	return DamageAmount;
+}
+
+void ABossSevarog::ShowSmashRange()
+{
+	if (PositionDecal)
+	{
+		SmashLoc = GetActorLocation() + FVector(0.f, 0.f, -250.f) + GetActorForwardVector() * 400.f + GetActorRightVector() * 150.f;
+		FTransform Transform;
+		Transform.SetLocation(SmashLoc);
+		Transform.SetScale3D(FVector(14.f));
+		GetWorld()->SpawnActor<APositionDecal>(PositionDecal, Transform);
+	}
+}
+
+void ABossSevarog::Smash()
+{
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	TEnumAsByte<EObjectTypeQuery> Target = UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel1);
+	ObjectTypes.Add(Target);	//Player
+
+	TArray<AActor*> IgnoreActors;
+	TArray<FHitResult> HitResults;
+
+	bool Result = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		GetWorld(),
+		SmashLoc,
+		SmashLoc,
+		3000.f,
+		ObjectTypes,
+		false,
+		IgnoreActors,
+		EDrawDebugTrace::None,	// 디버그
+		HitResults,
+		true
+		// 여기 밑에 3개는 기본 값으로 제공됨. 바꾸려면 적으면 됨.
+		//, FLinearColor::Red
+		//, FLinearColor::Green
+		//, 5.0f
+	);
+
+	if (Result)
+	{
+		for (auto HitResult : HitResults)
+		{
+			AMain* Main = Cast<AMain>(HitResult.GetActor());
+			if (Main)
+			{
+				if (Main->GetCharacterMovement()->IsWalking())
+				{ 
+					UGameplayStatics::ApplyPointDamage(Main, 50.f, SmashLoc, HitResult, Controller, this, Main->Rush);
+					FVector LaunchVelocity = Main->GetActorForwardVector() * -5000.f + Main->GetActorUpVector() * 100.f;
+					Main->LaunchCharacter(LaunchVelocity, false, false);
+				}
+			}
+		}
+	}
+
+	if (SmashSound) UGameplayStatics::PlaySoundAtLocation(this, SmashSound, SmashLoc);
+	
+	if (SmashParticle) UGameplayStatics::SpawnEmitterAtLocation(this, SmashParticle, SmashLoc, FRotator::ZeroRotator, FVector(11.f, 11.f, 6.f));
+}
+
+void ABossSevarog::CreateEnemySpawner()
+{
+	if (EnemySpawner)
+	{
+		FVector SpawnLoc = GetActorLocation() + FVector(0.f, 0.f, -200.f) + GetActorForwardVector() * 400.f;
+		FTransform Transform;
+		Transform.SetLocation(SpawnLoc);
+		Transform.SetScale3D(FVector(12.f, 12.f, 1.f));
+		GetWorld()->SpawnActor<ASpawnVolume>(EnemySpawner, Transform);
+	}
+}
+
+void ABossSevarog::SpawnEnemyAttack()
+{
+	if (!bAttacking && Alive())
+	{
+		bAttacking = true;
+		bCanAttack = false;
+		bDamagedIng = false;
+
+		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
+
+		AttackDelay();
+
+		if (AnimInstance && SpawnEnemyMontage)
+		{
+			AnimInstance->Montage_Play(SpawnEnemyMontage, 1.0f);
+			AnimInstance->Montage_JumpToSection(FName("SpawnEnemy"), SpawnEnemyMontage);
+		}
+	}
 }

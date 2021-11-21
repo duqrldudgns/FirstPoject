@@ -517,20 +517,3 @@ public:
 	USoundCue* GrassImpactSound;
 
 };
-
-/*
-Toggle Aim X
-Instant Fire X
-HideQuiver X
-GrabArrowfromQuiver O
-CrosshairtoUse Circle
-ShootProjectile O
-showstaticmeshobstacle O
-alwaysaimwhenequipped X
-AimpostProcess O
-AimchangeCameraArmLength O
-FOV O
-DontuseArrows? X
-ArrowObstacleCheck? X 인데 쓸수있으면 좋을듯
-UseCameraEffect O
-*/

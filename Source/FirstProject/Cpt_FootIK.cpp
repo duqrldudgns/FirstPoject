@@ -2,13 +2,13 @@
 
 
 #include "Cpt_FootIK.h"
-#include "Main.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Character.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Animation/AnimInstance.h"
+#include "Main.h"
 
 // Sets default values for this component's properties
 UCpt_FootIK::UCpt_FootIK()

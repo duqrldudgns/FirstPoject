@@ -3,23 +3,23 @@
 
 #include "Bow.h"
 #include "CableComponent.h"
+#include "Camera/CameraComponent.h"
 #include "Components/AudioComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Particles/ParticleSystemComponent.h"
-#include "Main.h"
-#include "Enemy.h"
-#include "Arrow.h"
-#include "Blueprint/UserWidget.h"
-#include "MainPlayerController.h"
-#include "Camera/CameraComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Engine/StaticMeshActor.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/StaticMeshActor.h"
+#include "Blueprint/UserWidget.h"
+#include "MainPlayerController.h"
 #include "Sound/SoundCue.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "ArrowPickUp.h"
+#include "Arrow.h"
+#include "Enemy.h"
+#include "Main.h"
 
 // Sets default values
 ABow::ABow()
@@ -117,8 +117,6 @@ ABow::ABow()
 void ABow::BeginPlay()
 {
 	Super::BeginPlay();
-	
-
 }
 
 // Called every frame
@@ -845,6 +843,7 @@ void ABow::RainOfArrows(FHitResult Hit)
 	FVector DamageEndLoc;
 	if (HitResult.bBlockingHit) DamageEndLoc = HitResult.Location;
 	else DamageEndLoc = HitResult.ImpactPoint;
+	DamageEndLoc.Z -= 2500.f;
 
 	if (RainOfArrowsBurst) UGameplayStatics::SpawnEmitterAtLocation(this, RainOfArrowsBurst, Hit.ImpactPoint);
 	if (RainOfArrowsParticle) UGameplayStatics::SpawnEmitterAtLocation(this, RainOfArrowsParticle, Hit.ImpactPoint);
@@ -998,7 +997,7 @@ void ABow::DetectionArrow(FVector HitLoc)
 		GetWorld(),
 		HitLoc,
 		HitLoc,
-		5000.f,
+		10000.f,
 		ObjectTypes,
 		false,
 		IgnoreActors,

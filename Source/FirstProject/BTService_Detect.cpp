@@ -54,7 +54,7 @@ void UBTService_Detect::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 				// Main면, 블랙보드에 저장한다.
 				OwnerComp.GetBlackboardComponent()->SetValueAsObject(AEnemyAIController::TargetKey, Main);
 				OwnerComp.GetBlackboardComponent()->SetValueAsVector(ABossSevarogAIController::TargetLocKey, TargetLoc);
-				if (nullptr == Boss) ControllingPawn->GetCharacterMovement()->MaxWalkSpeed = 400.f;
+				if (nullptr == Boss && !ControllingPawn->bSlowDebuff) ControllingPawn->GetCharacterMovement()->MaxWalkSpeed = 400.f;
 
 				// 디버깅 용.
 				//DrawDebugSphere(World, Center, ControllingPawn->DetectRadius, 16, FColor::Green, false, 0.2f);

@@ -2,14 +2,14 @@
 
 
 #include "Thunderstroke.h"
-#include "Kismet/GameplayStatics.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
-#include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "Sound/SoundCue.h"
+#include "TimerManager.h"
 #include "Enemy.h"
 #include "Main.h"
-#include "Sound/SoundCue.h"
 
 AThunderstroke::AThunderstroke()
 {
@@ -29,9 +29,6 @@ void AThunderstroke::BeginPlay()
 
 	CollisionVolume->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 
-	CapsuleCollision->OnComponentBeginOverlap.AddDynamic(this, &AThunderstroke::CapsuleOverlapBegin);
-	CapsuleCollision->OnComponentEndOverlap.AddDynamic(this, &AThunderstroke::CapsuleOverlapEnd);
-
 	GetWorldTimerManager().SetTimer(HitTimer, this, &AThunderstroke::HitOverlap, HitDelay);
 
 	if (OverlapSound)
@@ -39,17 +36,6 @@ void AThunderstroke::BeginPlay()
 		UGameplayStatics::PlaySoundAtLocation(this, OverlapSound, GetActorLocation());
 	}
 }
-
-void AThunderstroke::CapsuleOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	//UE_LOG(LogTemp, Warning, TEXT("%d"), ExplosiveInstigator);
-
-}
-
-void AThunderstroke::CapsuleOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-}
-
 
 void AThunderstroke::HitOverlap()
 {
