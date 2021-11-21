@@ -23,7 +23,7 @@
 #include "AIController.h"
 #include "Weapon.h"
 #include "Main.h"
-
+#include "Bow.h"
 
 // Sets default values
 AEnemy::AEnemy()
@@ -77,7 +77,7 @@ AEnemy::AEnemy()
 	AIControllerClass = AEnemyAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;	//레벨에 배치하거나 새로 생성되는 Enemy는 EnemyAIController의 지배를 받게됨
 
-	DetectRadius = 1000.f;
+	DetectRadius = 1300.f;
 
 	DisplayHealthBarTime = 5.f;
 
@@ -165,7 +165,7 @@ void AEnemy::CombatOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor
 {
 }
 
-void AEnemy::MoveToTarget(class AMain* Target)	//@@@@@FIX ERROR : 네비게이션박스 밖에 있는 캐릭터 발견 시 에러남
+void AEnemy::MoveToTarget(class AMain* Target)	
 {
 	if (Alive())
 	{
@@ -318,7 +318,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 		if (Coontroller)	//누가 때리던 간에 그냥 맞아야함, 컨트롤러 연결하는 연습이라도 할겸 연결해봐야함
 		{
 			AMain* Main = Cast<AMain>(Coontroller->GetPawn());
-			if (Main && AnimInstance && DamagedMontage)
+			if (Main && AnimInstance && DamagedMontage && LightDamagedMontage)
 			{
 				DisplayHealthBar();
 
@@ -350,7 +350,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 				UE_LOG(LogTemp, Warning, TEXT("%s"), *HitRotation.ToString());
 
 				UE_LOG(LogTemp, Warning, TEXT("%d"), bAttacking);
-				if (DamageEvent.DamageTypeClass == Main->Basic && !bAttacking)
+				if (DamageEvent.DamageTypeClass == Main->Basic  && !bAttacking)
 				{
 					bDamagedIng = true;
 
@@ -358,23 +358,23 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 					{
 						if (-45.f <= HitRotation.Yaw && HitRotation.Yaw < 45.f)
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("FrontHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("FrontHit"), LightDamagedMontage);
 						}
 						else if (-135.f <= HitRotation.Yaw && HitRotation.Yaw < -45.f)
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("LeftHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("LeftHit"), LightDamagedMontage);
 						}
 						else if (45.f <= HitRotation.Yaw && HitRotation.Yaw < 135.f)
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("RightHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("RightHit"), LightDamagedMontage);
 						}
 						else
 						{
-							AnimInstance->Montage_Play(DamagedMontage, 1.0f);
-							AnimInstance->Montage_JumpToSection(FName("BackHit"), DamagedMontage);
+							AnimInstance->Montage_Play(LightDamagedMontage, 1.0f);
+							AnimInstance->Montage_JumpToSection(FName("BackHit"), LightDamagedMontage);
 						}
 					}
 					else	// 공중 공격 맞을 시

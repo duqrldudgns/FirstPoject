@@ -42,7 +42,7 @@ Arrow
 화살은 Projectile 형태로 날아갑니다.
 
 Draw 하는 시간에 따라서 화살의 속도가 달라집니다.
-
+SpawnActorDeferred 함수를 통해 생성 전에 속도를 설정해준 후 FinishSpawning으로 생성하게끔 했습니다.
 RandomUnitVectorInConeInDegrees 함수를 통해 조준점의 큰 원 내에서 랜덤한 방향으로 화살이 발사되도록 했습니다.
 
 화살은 충돌 시 해당 자리에 Pickup 가능한 Actor로 남습니다.
