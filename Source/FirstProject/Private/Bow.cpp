@@ -134,8 +134,8 @@ void ABow::BeginPlayBow(ACharacter* Object)
 	// Set Basic
 	CharReference = Cast<AMain>(Object);
 	if (nullptr == CharReference) return;
-	CharacterDefaultFOV = CharReference->DefaultFieldOfView_;
-	CharacterDefaultCameraArmLength = CharReference->DefaultArmLength_;
+	CharacterDefaultFOV = CharReference->DefaultFieldOfView;
+	CharacterDefaultCameraArmLength = CharReference->DefaultArmLength;
 
 	// Set Arrows ammo & Aim & cooldown
 	AMainPlayerController* Controller = Cast<AMainPlayerController>(CharReference->GetController());
@@ -145,9 +145,9 @@ void ABow::BeginPlayBow(ACharacter* Object)
 	UIWidgetReference->SetVisibility(ESlateVisibility::Visible);
 
 	UpdateCrossHairWithSpread(TraceSpreadMax);
-	UpdateAmmoUI(CharReference->Arrows_);
+	UpdateAmmoUI(CharReference->Arrows);
 
-	CharReference->AimAssistPlayRate_ = AimAssistPlayRate;
+	CharReference->AimAssistPlayRate = AimAssistPlayRate;
 
 	// If Static mesh obstacles in front of the player, adding the UI to the screen.
 	if (nullptr == WCantHitWidget) return;
@@ -157,8 +157,8 @@ void ABow::BeginPlayBow(ACharacter* Object)
 	// Bow setting when idle
 	HideArrow();
 	DontHoldCable();
-	CharReference->MaxArrows_ = MaxArrows;
-	if (CharReference->Arrows_ > MaxArrows) CharReference->Arrows_ = MaxArrows;
+	CharReference->MaxArrows = MaxArrows;
+	if (CharReference->Arrows > MaxArrows) CharReference->Arrows = MaxArrows;
 
 	// Set Projectile Status
 	SetArrowStatus(EArrowStatus::EAS_Normal);
@@ -468,7 +468,7 @@ void ABow::StopDraw()
 	StopDamageNumbersTimeline();
 
 	// Reset Draw
-	CharReference->Draw_ = 0.f;
+	CharReference->Draw = 0.f;
 }
 
 void ABow::InteruptedDrawShoot()
@@ -502,12 +502,12 @@ void ABow::DrawShoot()
 
 void ABow::Shoot()
 {
-	CharReference->Draw_ = 0.f;
+	CharReference->Draw = 0.f;
 
 	if (!IsAiming) return;
 	if (!CanShootAndSubtractAmmo()) return;
 
-	CharReference->PShoot_->Activate(true);
+	CharReference->PShoot->Activate(true);
 
 	FTransform Transform = CalculateProjectileInfo();
 
@@ -518,7 +518,7 @@ bool ABow::CanShootAndSubtractAmmo()
 {
 	if (IsAiming)
 	{
-		if (CharReference->Arrows_ > 0)
+		if (CharReference->Arrows > 0)
 		{
 			CharReference->SubtractArrows(1);
 			return true;

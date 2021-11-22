@@ -50,11 +50,39 @@ public:
 	// Sets default values for this character's properties
 	AMain();
 
-	/** Debug */
-	TArray<FVector> PickupLocations;
 
-	UFUNCTION(BlueprintCallable)
-	void ShowPickupLocations();
+	/** Camera boom positioning the camera behind the player */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))	// 코드상에서는 private이지만 에디터 상에서는 수정 가능
+		class USpringArmComponent* CameraBoom;
+
+	/** Follow Camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+		class UCameraComponent* FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+		UCameraComponent* FollowCameraZoomIn;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+		class UParticleSystemComponent* PShoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sword", meta = (AllowPrivateAccess = "true"))
+		class UChildActorComponent* SwordAttached;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow", meta = (AllowPrivateAccess = "true"))
+		UChildActorComponent* BowAttached;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+		class UStaticMeshComponent* Quiver;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+		class UInstancedStaticMeshComponent* QuiverArrows;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+		class USceneComponent* ArrowsVisualize;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
+		class UDecalComponent* SelectDecal;
+
 
 	/** Armed Status*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enums")
@@ -140,43 +168,12 @@ public:
 		
 	virtual void StopJumping() override;
 
-	/** Camera boom positioning the camera behind the player */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))	// 코드상에서는 private이지만 에디터 상에서는 수정 가능
-	class USpringArmComponent* CameraBoom;
-
-	/** Follow Camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* FollowCamera;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FollowCameraZoomIn_;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-	class UParticleSystemComponent* PShoot_;
-
 	/** Base turn rates to scale turning functions for the camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseTurnRate;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sword", meta = (AllowPrivateAccess = "true"))
-	class UChildActorComponent* SwordAttached;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow", meta = (AllowPrivateAccess = "true"))
-	UChildActorComponent* BowAttached_;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-	class UStaticMeshComponent* Quiver_;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-	class UInstancedStaticMeshComponent* QuiverArrows_;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-	class USceneComponent* ArrowsVisualize_;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
-	class UDecalComponent* SelectDecal;
 	
 	void AddInstanceQuiverArrows();
 
@@ -253,79 +250,76 @@ public:
 
 	/** Bow */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float DefaultFieldOfView_;
+	float DefaultFieldOfView;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float DefaultArmLength_;
-	
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	//float DefaultMaxWalkSpeed_;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float TraceRadius_;	//50.f
+	float DefaultArmLength;
+
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
+	float TraceRadius;	//50.f
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	AActor* AimAssistTarget_;	//BPFocusPoint
+	AActor* AimAssistTarget;	//BPFocusPoint
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float DistanceToAimAssistTarget_;
+	float DistanceToAimAssistTarget;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float MaxAimAssistDistance_;	//2000,f
+	float MaxAimAssistDistance;	//2000,f
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float MaxTraceRadius_;	//100.f
+	float MaxTraceRadius;	//100.f
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	FRotator StartRotation_;
+	FRotator StartRotation;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool ActiveAimAssist_;
+	bool ActiveAimAssist;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float AimAssistPlayRate_;	//1.f
+	float AimAssistPlayRate;	//1.f
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	class ABow* BowReference_;	//BPBow
+	class ABow* BowReference;	//BPBow
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	int32 ArrowMeshesInquiver_;
+	int32 ArrowMeshesInquiver;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool BowEquipped_;
+	bool BowEquipped;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool WantsToAim_;
+	bool WantsToAim;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	int32 Arrows_;	//99999
+	int32 Arrows;	//99999
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool Aiming_;
+	bool Aiming;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	int32 SubtractNumber_;
+	int32 SubtractNumber;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool Drawing_;
+	bool Drawing;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool WantsToDraw_;
+	bool WantsToDraw;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool CanDraw_;	// true
+	bool CanDraw;	// true
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	bool GrabArrowFromQuiver_;
+	bool GrabArrowFromQuiver;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	TArray<FTransform> ArrowTransform_;
+	TArray<FTransform> ArrowTransform;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	int32 MaxArrows_;	//100
+	int32 MaxArrows;	//100
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	float Draw_;
+	float Draw;
 
 
 	/** Foot IK */
@@ -840,4 +834,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill | CloneAttack")
 	class USoundCue* CloneRemoveSound;
 
+
+	/** Debug */
+	TArray<FVector> PickupLocations;
+
+	UFUNCTION(BlueprintCallable)
+		void ShowPickupLocations();
 };

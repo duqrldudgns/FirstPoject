@@ -43,20 +43,20 @@ AMain::AMain()
 	SwordAttached = CreateDefaultSubobject<UChildActorComponent>(TEXT("SwordAttached"));
 	SwordAttached->SetupAttachment(GetMesh(), "Sword_Back");		// Attach the camera to the end of the boom and let the boom adjust to match 
 
-	BowAttached_ = CreateDefaultSubobject<UChildActorComponent>(TEXT("BowAttached_"));
-	BowAttached_->SetupAttachment(GetMesh(), "Bow_Back");
+	BowAttached = CreateDefaultSubobject<UChildActorComponent>(TEXT("BowAttached"));
+	BowAttached->SetupAttachment(GetMesh(), "Bow_Back");
 
-	Quiver_ = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Quiver_"));
-	Quiver_->SetupAttachment(GetMesh(), "QuiverSocket");
+	Quiver = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Quiver"));
+	Quiver->SetupAttachment(GetMesh(), "QuiverSocket");
 	
-	QuiverArrows_ = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Quiver_Arrows_"));
-	QuiverArrows_->SetupAttachment(Quiver_);
-	QuiverArrows_->SetWorldRotation(FRotator(30.f, 0.f, 0.f));
-	QuiverArrows_->InstancingRandomSeed = 21757;
-	QuiverArrows_->SetEnableGravity(false);
-	QuiverArrows_->SetGenerateOverlapEvents(false);
-	QuiverArrows_->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-	QuiverArrows_->SetCollisionProfileName("NoCollision");
+	QuiverArrows = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("QuiverArrows"));
+	QuiverArrows->SetupAttachment(Quiver);
+	QuiverArrows->SetWorldRotation(FRotator(30.f, 0.f, 0.f));
+	QuiverArrows->InstancingRandomSeed = 21757;
+	QuiverArrows->SetEnableGravity(false);
+	QuiverArrows->SetGenerateOverlapEvents(false);
+	QuiverArrows->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+	QuiverArrows->SetCollisionProfileName("NoCollision");
 	AddInstanceQuiverArrows();
 
 	// Create Character Select Decal
@@ -85,18 +85,18 @@ AMain::AMain()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);		// Attach the camera to the end of the boom and let the boom adjust to match 
 	FollowCamera->bUsePawnControlRotation = false;		// 이미 springarm이 true이기 때문에 컨트롤러에 의존하지않음
 
-	FollowCameraZoomIn_ = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCameraZoomIn_"));
-	FollowCameraZoomIn_->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	FollowCameraZoomIn_->SetRelativeLocation(FVector(300.f, 80.f, 55.f));
-	FollowCameraZoomIn_->bUsePawnControlRotation = false;
+	FollowCameraZoomIn = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCameraZoomIn"));
+	FollowCameraZoomIn->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCameraZoomIn->SetRelativeLocation(FVector(300.f, 80.f, 55.f));
+	FollowCameraZoomIn->bUsePawnControlRotation = false;
 	
-	PShoot_ = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("P_Shoot_"));
-	PShoot_->SetupAttachment(FollowCamera);
-	PShoot_->SetRelativeLocation(FVector(100.f, 0.f, 0.f));
-	PShoot_->SetAutoActivate(false);
+	PShoot = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("PShoot"));
+	PShoot->SetupAttachment(FollowCamera);
+	PShoot->SetRelativeLocation(FVector(100.f, 0.f, 0.f));
+	PShoot->SetAutoActivate(false);
 
-	ArrowsVisualize_ = CreateDefaultSubobject<USceneComponent>(TEXT("Arrows_Visualize_"));
-	ArrowsVisualize_->SetupAttachment(GetRootComponent());
+	ArrowsVisualize = CreateDefaultSubobject<USceneComponent>(TEXT("ArrowsVisualize"));
+	ArrowsVisualize->SetupAttachment(GetRootComponent());
 
 	// Set our turn rates for input , 1초동안 키를 누르고 있으면 회전하는 양
 	BaseTurnRate = 65.f;
@@ -172,15 +172,15 @@ AMain::AMain()
 	FollowCameraInitLoc = FollowCamera->GetRelativeLocation();
 
 	// Bow
-	DefaultFieldOfView_ = FollowCamera->FieldOfView;
-	DefaultArmLength_ = CameraBoom->TargetArmLength;
-	TraceRadius_ = 50.f;
-	MaxAimAssistDistance_ = 2000.f;
-	MaxTraceRadius_ = 100.f;
-	AimAssistPlayRate_ = 1.f;
-	Arrows_ = 99999;	
-	CanDraw_ = true;	
-	MaxArrows_ = 10;	
+	DefaultFieldOfView = FollowCamera->FieldOfView;
+	DefaultArmLength = CameraBoom->TargetArmLength;
+	TraceRadius = 50.f;
+	MaxAimAssistDistance = 2000.f;
+	MaxTraceRadius = 100.f;
+	AimAssistPlayRate = 1.f;
+	Arrows = 99999;	
+	CanDraw = true;	
+	MaxArrows = 10;	
 
 	FirstSkillCoolDownUI = 1.f;
 	SecondSkillCoolDownUI = 1.f;
@@ -577,7 +577,7 @@ void AMain::DeathEnd()
 
 void AMain::SetMovementStatus(EMovementStatus Status)
 {
-	if (Aiming_) return;
+	if (Aiming) return;
 
 	MovementStatus = Status;
 	if (MovementStatus == EMovementStatus::EMS_Sprinting)
@@ -687,7 +687,7 @@ void AMain::SwordEquipKeyDown()
 {
 	bSwordEquipKeyDown = true;
 
-	if (BowEquipped_) return;
+	if (BowEquipped) return;
 
 	AWeapon* Weapon = Cast<AWeapon>(SwordAttached->GetChildActor());
 	if (Weapon && !GetMovementComponent()->IsFalling() && GetArmedStatus() == EArmedStatus::EAS_Normal)
@@ -895,7 +895,7 @@ float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEve
 
 				int32 Num = FMath::RandRange(0, 1);
 				FName MontageList[] = { "Damaged01", "Damaged02" };
-				if (!Montage->GetCurrentActiveMontage() && !Aiming_)
+				if (!Montage->GetCurrentActiveMontage() && !Aiming)
 				{
 					ResetCasting();
 					PlayMontage(DamagedMontage, MontageList[Num]);
@@ -923,8 +923,8 @@ void AMain::ResetCasting()	//무언가 동작 중에 다른 동작을 요구할 때
 			Weapon->DeActivateCollision();
 		}
 	}
-	if (Drawing_) CanDraw_ = true;
-	if (Aiming_) ForceAimStop();
+	if (Drawing) CanDraw = true;
+	if (Aiming) ForceAimStop();
 
 	UAnimInstance* Montage = GetMesh()->GetAnimInstance();
 	if (Montage->GetCurrentActiveMontage() != DodgeMontage)
@@ -1147,12 +1147,12 @@ void AMain::FirstSkillKeyDown()
 		FireBallSkillCast();
 	}
 
-	if (BowEquipped_ && !BowReference_->RainOfArrowsCoolDown)
+	if (BowEquipped && !BowReference->RainOfArrowsCoolDown)
 	{
-		if (BowReference_->RainOfArrowsActive)
-			BowReference_->SetRainOfArrowsActive(false);
+		if (BowReference->RainOfArrowsActive)
+			BowReference->SetRainOfArrowsActive(false);
 		else
-			BowReference_->SetRainOfArrowsActive(true);
+			BowReference->SetRainOfArrowsActive(true);
 	}
 }
 
@@ -1172,12 +1172,12 @@ void AMain::SecondSkillKeyDown()
 		WaveSkillCast();
 	}
 
-	if (BowEquipped_ && !BowReference_->IceArrowCoolDown)
+	if (BowEquipped && !BowReference->IceArrowCoolDown)
 	{
-		if (BowReference_->IceArrowActive)
-			BowReference_->SetIceArrowActive(false);
+		if (BowReference->IceArrowActive)
+			BowReference->SetIceArrowActive(false);
 		else
-			BowReference_->SetIceArrowActive(true);
+			BowReference->SetIceArrowActive(true);
 	}
 }
 
@@ -1197,12 +1197,12 @@ void AMain::ThirdSkillKeyDown()
 		Blackhole();
 	}
 
-	if (BowEquipped_ && !BowReference_->DetectionArrowCoolDown)
+	if (BowEquipped && !BowReference->DetectionArrowCoolDown)
 	{
-		if (BowReference_->DetectionArrowActive)
-			BowReference_->SetDetectionArrowActive(false);
+		if (BowReference->DetectionArrowActive)
+			BowReference->SetDetectionArrowActive(false);
 		else
-			BowReference_->SetDetectionArrowActive(true);
+			BowReference->SetDetectionArrowActive(true);
 	}
 }
 
@@ -1467,7 +1467,7 @@ void AMain::DodgeEnd()
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Block);	// Enemy의 무기
 
 	if (bGotHit) bGotHit = false;
-	CanDraw_ = true;
+	CanDraw = true;
 }
 
 void AMain::AddInstanceQuiverArrows()
@@ -1475,29 +1475,29 @@ void AMain::AddInstanceQuiverArrows()
 	FTransform Transform;
 	Transform.SetRotation(FQuat(FRotator(-39.f, 167.f, 52.f)));
 	Transform.SetScale3D(FVector(0.95f, 1.8f, 1.8f));
-	for(int i=0; i<8; i++) QuiverArrows_->AddInstance(Transform);
+	for(int i=0; i<8; i++) QuiverArrows->AddInstance(Transform);
 }
 
 void AMain::BowInitSet()
 {
-	BowReference_ = Cast<ABow>(BowAttached_->GetChildActor());
-	if (BowReference_ == nullptr) return;
+	BowReference = Cast<ABow>(BowAttached->GetChildActor());
+	if (BowReference == nullptr) return;
 
-	BowReference_->BeginPlayBow(this);
+	BowReference->BeginPlayBow(this);
 		
-	ArrowMeshesInquiver_ = QuiverArrows_->GetInstanceCount() - 1;
+	ArrowMeshesInquiver = QuiverArrows->GetInstanceCount() - 1;
 	SaveArrowTransforms();
 
-	//StartTransform_ = GetActorTransform();
+	//StartTransform = GetActorTransform();
 }
 
 void AMain::SaveArrowTransforms()
 {
-	for (int i = 0; i <= ArrowMeshesInquiver_; i++)
+	for (int i = 0; i <= ArrowMeshesInquiver; i++)
 	{
 		FTransform OutInstanceTransform;
-		QuiverArrows_->GetInstanceTransform(i, OutInstanceTransform);
-		ArrowTransform_.Emplace(OutInstanceTransform);
+		QuiverArrows->GetInstanceTransform(i, OutInstanceTransform);
+		ArrowTransform.Emplace(OutInstanceTransform);
 	}
 
 }
@@ -1508,7 +1508,7 @@ void AMain::BowEquipKeyDown()
 
 	if (EquippedWeapon) return;
 
-	if (!BowEquipped_)
+	if (!BowEquipped)
 	{
 		bArmedBridgeIng = true;
 		PlayMontage(BowEquipMontage, "BowEquip");
@@ -1527,146 +1527,146 @@ void AMain::BowEquipKeyUp()
 
 void AMain::EquipBow()
 {
-	BowAttached_->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true), "Bow1_Socket");
-	if (BowReference_->BowEquipSound) UGameplayStatics::PlaySound2D(this, BowReference_->BowEquipSound);
+	BowAttached->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true), "Bow1_Socket");
+	if (BowReference->BowEquipSound) UGameplayStatics::PlaySound2D(this, BowReference->BowEquipSound);
 
-	BowEquipped_ = true;
+	BowEquipped = true;
 	SetArmedStatus(EArmedStatus::EAS_Bow);
 
-	BowReference_->EquippedChanged(false);
+	BowReference->EquippedChanged(false);
 
-	if (Arrows_ > 0) RemoveArrowMeshQuiver(Arrows_ - 1);
+	if (Arrows > 0) RemoveArrowMeshQuiver(Arrows - 1);
 
-	if (WantsToAim_) CheckWantsToAim();
+	if (WantsToAim) CheckWantsToAim();
 
 }
 
 void AMain::UnEquipBow()
 {
-	BowReference_->HideArrow();
-	BowReference_->DontHoldCable();
+	BowReference->HideArrow();
+	BowReference->DontHoldCable();
 
-	if (Aiming_) ForceAimStop();
+	if (Aiming) ForceAimStop();
 
-	BowEquipped_ = false;
+	BowEquipped = false;
 	SetArmedStatus(EArmedStatus::EAS_Normal);
 
-	BowAttached_->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true), "Bow_Back");
-	if (BowReference_->BowUnEquipSound) UGameplayStatics::PlaySound2D(this, BowReference_->BowUnEquipSound);
+	BowAttached->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true), "Bow_Back");
+	if (BowReference->BowUnEquipSound) UGameplayStatics::PlaySound2D(this, BowReference->BowUnEquipSound);
 
-	BowReference_->EquippedChanged(true);
+	BowReference->EquippedChanged(true);
 
-	if (Arrows_ > 0) SubtractNumber_ = 1;
-	AddArrowMeshQuiver(Arrows_);
+	if (Arrows > 0) SubtractNumber = 1;
+	AddArrowMeshQuiver(Arrows);
 }
 
 void AMain::RemoveArrowMeshQuiver(int32 NewArrows)
 {
-	QuiverArrows_->RemoveInstance(NewArrows);
+	QuiverArrows->RemoveInstance(NewArrows);
 }
 
 void AMain::AddArrowMeshQuiver(int32 NewArrows)
 {
-	if (NewArrows - SubtractNumber_ < ArrowMeshesInquiver_ + 1)
+	if (NewArrows - SubtractNumber < ArrowMeshesInquiver + 1)
 	{
-		int32 idx = QuiverArrows_->GetInstanceCount();
-		QuiverArrows_->AddInstance(ArrowTransform_[idx]);
+		int32 idx = QuiverArrows->GetInstanceCount();
+		QuiverArrows->AddInstance(ArrowTransform[idx]);
 	}
 }
 
 
 void AMain::SubtractArrows(int32 ArrowsToSubtract)	// 보통 ArrowsToSubtract = 1
 {
-	if (Arrows_ <= 0) return;
+	if (Arrows <= 0) return;
 
-	Arrows_ -= ArrowsToSubtract;
+	Arrows -= ArrowsToSubtract;
 
-	if (Arrows_ == 0) BowReference_->HideArrow();
+	if (Arrows == 0) BowReference->HideArrow();
 
-	BowReference_->UpdateAmmoUI(Arrows_);
+	BowReference->UpdateAmmoUI(Arrows);
 }
 
 void AMain::AddArrows(int32 ArrowsToAdd)	// 보통 ArrowsToAdd = 1
 {
-	int32 CurrentAmmo = Arrows_;
+	int32 CurrentAmmo = Arrows;
 
-	if (Arrows_ >= MaxArrows_) return;
+	if (Arrows >= MaxArrows) return;
 
-	Arrows_ += ArrowsToAdd;
+	Arrows += ArrowsToAdd;
 
-	if (Aiming_ && (CurrentAmmo == 0))
+	if (Aiming && (CurrentAmmo == 0))
 	{
-		SubtractNumber_ = 2;
+		SubtractNumber = 2;
 	}
 	else
 	{
 		for (int i = 0; i <= ArrowsToAdd - 1; i++)
 		{
 			AddArrowMeshQuiver(CurrentAmmo + 1);
-			if (QuiverArrows_->GetInstanceCount() == ArrowMeshesInquiver_) SubtractNumber_ = 1;
+			if (QuiverArrows->GetInstanceCount() == ArrowMeshesInquiver) SubtractNumber = 1;
 		}
 	}
 
-	BowReference_->UpdateAmmoUI(Arrows_);
+	BowReference->UpdateAmmoUI(Arrows);
 
 	if (CurrentAmmo == 0)
-		if (Aiming_ && BowEquipped_) 
-			BowReference_->ShowArrow();
+		if (Aiming && BowEquipped) 
+			BowReference->ShowArrow();
 }
 
 void AMain::BowAimInputPressed()
 {
-	WantsToAim_ = true;
+	WantsToAim = true;
 
 	ForceAimStart();
 }
 
 void AMain::BowAimInputReleased()
 {
-	WantsToAim_ = false;
+	WantsToAim = false;
 
 	ForceAimStop();
 }
 
 void AMain::CheckWantsToAim()
 {
-	if (WantsToAim_) ForceAimStart();
+	if (WantsToAim) ForceAimStart();
 }
 
 void AMain::ForceAimStart()
 {
-	if (!BowEquipped_ || bGotHit) return;
+	if (!BowEquipped || bGotHit) return;
 
 	SetMovementStatus(EMovementStatus::EMS_Normal);
 
-	BowReference_->AimStart();
+	BowReference->AimStart();
 
 	StartAim();
 
-	if (Arrows_ > 0) BowReference_->ShowArrow();
+	if (Arrows > 0) BowReference->ShowArrow();
 
 	CheckWantsToDraw();
 }
 
 void AMain::ForceAimStop()
 {
-	if (!BowEquipped_) return;
+	if (!BowEquipped) return;
 
-	BowReference_->AimStop();
+	BowReference->AimStop();
 
 	StopAim();
 }
 
 void AMain::StartAim()
 {
-	Aiming_ = true;
+	Aiming = true;
 	
 	ChangeFollowCameraZoomIn();
 }
 
 void AMain::StopAim()
 {
-	Aiming_ = false;
+	Aiming = false;
 	
 	ChangeFollowCamera();
 }
@@ -1700,7 +1700,7 @@ void AMain::CameraChangeInterp()
 {
 	if (bCameraZoomIn) 
 	{
-		FVector NewLocation = UKismetMathLibrary::VInterpTo(FollowCamera->GetRelativeLocation(), FollowCameraZoomIn_->GetRelativeLocation(), GetWorld()->GetDeltaSeconds(), 5.f);
+		FVector NewLocation = UKismetMathLibrary::VInterpTo(FollowCamera->GetRelativeLocation(), FollowCameraZoomIn->GetRelativeLocation(), GetWorld()->GetDeltaSeconds(), 5.f);
 		FollowCamera->SetRelativeLocation(NewLocation);
 	}
 	else if (bCameraZoomOut)
@@ -1717,52 +1717,52 @@ void AMain::CameraChangeInterp()
 
 void AMain::BowDrawPressed()
 {
-	WantsToDraw_ = true;
+	WantsToDraw = true;
 
-	if (CanDraw_ && BowEquipped_ && Aiming_) CheckDrawStart();
+	if (CanDraw && BowEquipped && Aiming) CheckDrawStart();
 }
 
 void AMain::BowDrawReleased()
 {
-	WantsToDraw_ = false;
+	WantsToDraw = false;
 
-	if (!(CanDraw_ && BowEquipped_ && Aiming_ && Arrows_ > 0)) return;
+	if (!(CanDraw && BowEquipped && Aiming && Arrows > 0)) return;
 
-	BowReference_->DrawShoot();
-	Drawing_ = false;
+	BowReference->DrawShoot();
+	Drawing = false;
 	PlayFireMontage();
 }
 
 void AMain::CheckWantsToDraw()
 {
-	if (WantsToDraw_ && CanDraw_ && BowEquipped_) CheckDrawStart();
+	if (WantsToDraw && CanDraw && BowEquipped) CheckDrawStart();
 }
 
 void AMain::CheckDrawStart()
 {
-	if (Arrows_ > 0) BowReference_->DrawStart();
-	Drawing_ = true;
+	if (Arrows > 0) BowReference->DrawStart();
+	Drawing = true;
 }
 
 void AMain::PlayFireMontage()
 {
-	BowReference_->HideArrow();
-	BowReference_->DontHoldCable();
+	BowReference->HideArrow();
+	BowReference->DontHoldCable();
 
 	if (ArrowFireMontage) PlayMontage(ArrowFireMontage, "Default");
 
 	// Temporarily don't allow draw
-	CanDraw_ = false;
+	CanDraw = false;
 }
 
 void AMain::FireArrowEnd()
 {
-	CanDraw_ = true;
+	CanDraw = true;
 	
-	if (WantsToDraw_) CheckWantsToDraw();
+	if (WantsToDraw) CheckWantsToDraw();
 
-	if (Arrows_ != 0) BowReference_->ShowArrow();
-	BowReference_->HoldCable();
+	if (Arrows != 0) BowReference->ShowArrow();
+	BowReference->HoldCable();
 }
 
 void AMain::LockOnTargetKeyDown()

@@ -37,7 +37,7 @@ void AArrowPickUp::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 	AMain* Main = Cast<AMain>(OtherActor);
 	if (nullptr == Main) return;
 	
-	if (Main->Arrows_ < Main->MaxArrows_)
+	if (Main->Arrows < Main->MaxArrows)
 	{
 		if(PickUpSound)	UGameplayStatics::PlaySoundAtLocation(this, PickUpSound, Mesh->GetComponentLocation());
 		
