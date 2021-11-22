@@ -10,12 +10,12 @@ UENUM(BlueprintType)
 enum class EMovementStatus : uint8
 {
 	//EMS : E Movement Status
-	EMS_Normal		UMETA(DisplayName = "Normal"),		//기본 달리기
-	EMS_Sprinting	UMETA(DisplayName = "Sprinting"),	//전력질주
-	EMS_Guard		UMETA(DisplayName = "Guard"),		//가드
-	EMS_Dead		UMETA(DisplayName = "Dead"),
+	EMS_Normal				UMETA(DisplayName = "Normal"),		//기본 달리기
+	EMS_Sprinting			UMETA(DisplayName = "Sprinting"),	//전력질주
+	EMS_Guard				UMETA(DisplayName = "Guard"),		//가드
+	EMS_Dead				UMETA(DisplayName = "Dead"),
 
-	EMS_MAX			UMETA(DisplayName = "DefaultMAX")	//사용하기 위한 것은 아니지만 이를 제한하고 명확한 최댓값을 나타냄
+	EMS_MAX					UMETA(DisplayName = "DefaultMAX")	//사용하기 위한 것은 아니지만 이를 제한하고 명확한 최댓값을 나타냄
 };
 
 UENUM(BlueprintType)
@@ -25,7 +25,7 @@ enum class EStaminaStatus : uint8
 	ESS_Normal				UMETA(DisplayName = "Normal"),
 	ESS_BelowMinimum		UMETA(DisplayName = "BelowMinimum"),
 	ESS_Exhausted			UMETA(DisplayName = "Exhausted"),
-	ESS_ExhaustedRecovering UMETA(DisplayName = "ExhaustedRecovering"),
+	ESS_ExhaustedRecovering	UMETA(DisplayName = "ExhaustedRecovering"),
 
 	ESS_MAX					UMETA(DisplayName = "DefaultMAX")
 };
@@ -53,35 +53,35 @@ public:
 
 	/** Camera boom positioning the camera behind the player */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))	// 코드상에서는 private이지만 에디터 상에서는 수정 가능
-		class USpringArmComponent* CameraBoom;
+	class USpringArmComponent* CameraBoom;
 
 	/** Follow Camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-		class UCameraComponent* FollowCamera;
+	class UCameraComponent* FollowCamera;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-		UCameraComponent* FollowCameraZoomIn;
+	UCameraComponent* FollowCameraZoomIn;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-		class UParticleSystemComponent* PShoot;
+	class UParticleSystemComponent* PShoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sword", meta = (AllowPrivateAccess = "true"))
-		class UChildActorComponent* SwordAttached;
+	class UChildActorComponent* SwordAttached;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow", meta = (AllowPrivateAccess = "true"))
-		UChildActorComponent* BowAttached;
+	UChildActorComponent* BowAttached;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-		class UStaticMeshComponent* Quiver;
+	class UStaticMeshComponent* Quiver;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-		class UInstancedStaticMeshComponent* QuiverArrows;
+	class UInstancedStaticMeshComponent* QuiverArrows;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-		class USceneComponent* ArrowsVisualize;
+	class USceneComponent* ArrowsVisualize;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Decal")
-		class UDecalComponent* SelectDecal;
+	class UDecalComponent* SelectDecal;
 
 
 	/** Armed Status*/
